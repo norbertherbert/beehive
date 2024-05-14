@@ -10,6 +10,8 @@ Once you have paired your Abeeway device with your Windows OS, you can search fo
 ```
     beehive -l
 ```
+(Run the above comman in Windows PowerShell.)
+
 `beehive` will scan for devices for up to 15s and show the result.
 If there are no devices found, you should make sure that your device is adwertizing. On abeeway Microtrackers and Smart Badges, you can trigger advertizements by turning OFF and ON the device again. Once you turn on the tracker it will advertize for a few minutes.
 
