@@ -11,7 +11,7 @@ Once you have paired your Abeeway device with your Windows OS, you can search fo
     beehive -l
 ```
 `beehive` will scan for devices for up to 15s and show the result.
-If there are no devices found, you should make sure that your device is adwertizing. On abeeway Microtrackers and Smart Badges, you can trigger advertizements by turning OFF and ON the device again. Once you turn on the device it will advertize for a few minutes.
+If there are no devices found, you should make sure that your device is adwertizing. On abeeway Microtrackers and Smart Badges, you can trigger advertizements by turning OFF and ON the device again. Once you turn on the tracker it will advertize for a few minutes.
 
 After one or more devices were found, you can connect to one of them them by executing the following command:
 
@@ -19,7 +19,7 @@ After one or more devices were found, you can connect to one of them them by exe
     beehive --cli <DEVICE>
 ```
 `<DEVICE>` is the name of the device as it was printed by the `beehive -l` command.
-Make sure that the device is still advertizing, otherwise it cannot be found by your computer.
+Make sure that the tracker is still advertizing, otherwise it cannot be found by your computer.
 
 After you finished your work with the Command Line Interface press `Ctrl-C` to exit.
 
