@@ -2,214 +2,46 @@ use std::time::Duration;
 use std::io::{self, Write};
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use futures::StreamExt;
 use tokio::time;
-use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter, WriteType };
 
-use btleplug::platform::{Manager, Adapter, Peripheral};
-use clap::{
-    arg, command, ArgGroup
-    // value_parser, ArgAction, Command
-};
+use btleplug::platform::Manager;
+use btleplug::api::{Central, Manager as _, Peripheral as _, WriteType};
 
-use beehive::abw::{self, AbwChars};
-
+use clap::{arg, command, ArgGroup};
 use pretty_env_logger;
 use log::*;
 
 
-async fn get_ble_adapter(manager: &Manager) -> Result<Adapter> {
-    let adapters = manager.adapters().await?;
-    adapters.into_iter().nth(0).ok_or(anyhow!("No Bluetooth adapters found"))
-}
-
-async fn find_abw_device_names(manager: &Manager) -> Result<Vec<(String, bool)>> {
-
-    let adapter = get_ble_adapter(manager).await?;
-
-    let adapter_info = adapter.adapter_info().await?;
-
-    info!("BLE Adapter was found: {}", &adapter_info);
-    println!("Scanning...");
-
-    adapter.start_scan(ScanFilter::default()).await?;
-
-    time::sleep(Duration::from_secs(5)).await;
-    let mut peripherals = adapter.peripherals().await?;
-
-    let mut found_abw_devices: Vec<(String, bool)> = Vec::new();
-
-    for _i in 0..10 {
-
-        for peripheral in peripherals.iter() {
-            let properties = peripheral.properties().await?;
-            let local_name = properties
-                .unwrap()
-                .local_name
-                .unwrap_or(String::from("(peripheral name unknown)"));
-            if local_name.starts_with(abw::PERIPHERAL_NAME_MATCH_FILTER) {
-                let is_connected = peripheral.is_connected().await?;
-                found_abw_devices.push((local_name, is_connected));
-            }
-        }
-
-        if found_abw_devices.len() > 0 { break }
-
-        time::sleep(Duration::from_secs(1)).await;
-        peripherals = adapter.peripherals().await?;
-
-    };
+use beehive::abw_ble::{
+    abw_srv,
+    find_dev::{find_abw_device_names, find_abw_device},
+    discover_srv::discover_chars,
+};
 
 
-    Ok(found_abw_devices)
-
-}
-
-
-async fn find_abw_device(manager: &Manager, selected_device: &String) -> Result<Option<Peripheral>> {
-
-    let adapter = get_ble_adapter(manager).await?;
-
-    let adapter_info = adapter.adapter_info().await?;
-
-    info!("BLE Adapter was found: {}", &adapter_info);
-    println!("Scanning...");
-
-    adapter.start_scan(ScanFilter::default()).await?;
-
-    let mut found_device: Option<Peripheral> = None;
-
-    time::sleep(Duration::from_secs(5)).await;
-
-    'outher: for _i in 0..10 {
-
-        let peripherals = adapter.peripherals().await?;
-
-        for peripheral in peripherals.iter() {
-            let properties = peripheral.properties().await?;
-            let local_name = properties
-                .unwrap()
-                .local_name
-                .unwrap_or(String::from("(peripheral name unknown)"));
-            if &local_name == selected_device {
-                found_device = Some(peripheral.clone());
-                break 'outher;
-            }
-        }
-
-        time::sleep(Duration::from_secs(1)).await;
-
-    };
-
-    Ok(found_device)
-
-}
-
-
-async fn discover_chars(device: &Peripheral) -> Result<AbwChars> {
-
-    let mut device_chars: abw::AbwChars = Default::default();
-
-    device.discover_services().await?;
-
-    for char in device.characteristics() {
-        match char.uuid {
-
-            abw::CHR_SYSTEM_EVENT => {
-                // println!("CHR_SYSTEM_EVENT");
-                device_chars.system_event = Some(char);
-            },
-            abw::CHR_CONFIGURATION => {
-                // println!("CHR_CONFIGURATION");
-                device_chars.configuration = Some(char);
-            },
-            abw::CHR_CUSTOM_CMD => {
-                // println!("CHR_CUSTOM_CMD");
-                device_chars.custom_cmd = Some(char);
-            },
-            abw::CHR_CUSTOM_MCU_FW_UPDATE => {
-                // println!("CHR_CUSTOM_MCU_FW_UPDATE");
-                device_chars.custom_mcu_fw_update = Some(char);
-            },
-            abw::CHR_CUSTOM_SEND_CLI_CMD => {
-                // println!("CHR_CUSTOM_SEND_CLI_CMD");
-                device_chars.custom_send_cli_cmd = Some(char);
-            },
-            abw::CHR_CUSTOM_RCV_SERIAL_DATA => {
-                // println!("CHR_CUSTOM_RCV_SERIAL_DATA");
-                device_chars.custom_rcv_serial_data = Some(char);
-            },
-
-
-            abw::CHR_MODEL_NUMBER => {
-                // println!("CHR_MODEL_NUMBER");
-                device_chars.model_number = Some(char);
-            },
-            abw::CHR_SERIAL_NUMBER => {
-                // println!("CHR_SERIAL_NUMBER");
-                device_chars.serial_number = Some(char);
-            },
-            abw::CHR_FIRMWARE_REVISION => {
-                // println!("CHR_FIRMWARE_REVISION");
-                device_chars.firmware_revision = Some(char);
-            },
-            abw::CHR_SOFTWARE_REVISION => {
-                // println!("CHR_SOFTWARE_REVISION");
-                device_chars.software_revision = Some(char);
-            },
-            abw::CHR_MANUFACTURER_NAME => {
-                // println!("CHR_MANUFACTURER_NAME");
-                device_chars.manufacturer_name = Some(char);
-            },
-            abw::CHR_TX_POWER_LEVEL => {
-                // println!("CHR_TX_POWER_LEVEL");
-                device_chars.tx_power_level = Some(char);
-            },
-            abw::CHR_BATTERY_LEVEL => {
-                // println!("CHR_BATTERY_LEVEL");
-                device_chars.battery_level = Some(char);
-            },
-            abw::CHR_BATTERY_POWER_STATE => {
-                // println!("CHR_BATTERY_POWER_STATE");
-                device_chars.battery_state = Some(char);
-            },
-            abw::CHR_TEMPERATURE_CELSIUS => {
-                // println!("CHR_TEMPERATURE_CELSIUS");
-                device_chars.temperature_celsius = Some(char);
-            },
-            abw::CHR_ALERT_LEVEL => {
-                // println!("CHR_ALERT_LEVEL");
-                device_chars.alert_level = Some(char);
-            },
-
-            _ => {
-
-            },
-
-        }
-    }
-
-    Ok(device_chars)
-
-}
 
 
 
 #[tokio::main]
 async fn main() -> Result<()> {
 
+
+    // Handling Ctrl-C event
     let running = Arc::new(AtomicBool::new(true));
-    let r = running.clone();
-    ctrlc::set_handler(move || {
-        r.store(false, Ordering::SeqCst);
-        println!("\nCtrl+C button pressed...\nPress 'Enter' to exit!");
-    }).expect("Error setting Ctrl-C handler");
+    {
+        let running = running.clone();
+        ctrlc::set_handler(move || {
+            running.store(false, Ordering::SeqCst);
+            println!("\nCtrl+C button pressed...\nPress 'Enter' to exit!");
+        }).expect("error setting Ctrl-C handler");
+    }
 
-
-    let matches = command!() // requires `cargo` feature
+    // Defining Command Line Options
+    let cli_arg_matches = command!() // requires `cargo` feature
         .arg(
             arg!(
                 -l --list "Lists advertizing Abeeway devices"
@@ -242,13 +74,15 @@ async fn main() -> Result<()> {
         )
         .get_matches();
 
-    let manager = Manager::new().await?;
-   
-    let log_level = match matches.get_one::<u8>("debug").expect("Count's are defaulted") {
+
+    // *********************************
+    // CLI Argument: "--debug"
+    // *********************************
+
+    let log_level = match cli_arg_matches.get_one::<u8>("debug").expect("Count's are defaulted") {
         0 => log::LevelFilter::Warn,
         _ => log::LevelFilter::Info,
     };
-
     pretty_env_logger::formatted_builder().filter_level(log_level).init();
 
     // trace!("a trace example");
@@ -259,9 +93,44 @@ async fn main() -> Result<()> {
 
 
 
-    if matches.get_flag("list") {
+    // *********************************
+    // Get the BLE Manager and Adapter
+    // *********************************
 
-        let found_abw_device_names = find_abw_device_names(&manager).await?;
+    let ble_manager = Manager::new().await
+        .expect("cannot get BLE manager");
+    let ble_adapters = ble_manager.adapters().await
+        .expect("cannot get BLE adapters");
+    let Some(ble_adapter) = ble_adapters.into_iter().nth(0) else {
+        error!("No Bluetooth adapters found");
+        return Ok(());
+    };
+    match ble_adapter.adapter_info().await {
+        Ok(ble_adapter_info) => {
+            info!("BLE Adapter was found: {}", &ble_adapter_info);
+        },
+        Err(e) => {
+            warn!("cannot get ble adapter info: {}", e);
+        }
+    }
+
+
+    // *********************************
+    // CLI Argument: "--list"
+    // *********************************
+
+    if cli_arg_matches.get_flag("list") {
+
+        println!("Scanning...");
+        let found_abw_device_names = match find_abw_device_names(&ble_adapter).await {
+            Ok(v) => v,
+            Err(e) => {
+                error!("error while searching for devices: {}", e);
+                println!("No Abeeway devices were found.");
+                println!("Make sure that the device you are looking for is advertizing and try again.");
+                return Ok(())
+            }
+        };
         match found_abw_device_names.len() {
             0 => {
                 println!("No Abeeway devices were found.");
@@ -286,84 +155,84 @@ async fn main() -> Result<()> {
 
     } 
 
-    if let Some(selected_device) = matches.get_one::<String>("show") {
 
-        let device = find_abw_device(&manager, selected_device).await?;
+    // *********************************
+    // CLI Argument: "--show"
+    // *********************************
+
+    if let Some(selected_device) = cli_arg_matches.get_one::<String>("show") {
+
+        println!("Scanning...");
+        let device = match find_abw_device(&ble_adapter, selected_device).await {
+            Ok(v) => v,
+            Err(e) => {
+                error!("error while searching for the selected device: {}", e);
+                println!("Cannot find the selected Abeeway Device.");
+                println!("Make sure that the device you are looking for is advertizing and try again.");
+                return Ok(())
+            }
+        };
 
         if let Some(device) = device {
 
+            let is_connected = match device.is_connected().await {
+                Ok(v) => v,
+                Err(e) => {
+                    error!("error while checking if the selected device is connected: {}", e);
+                    return Ok(())
+                }
+            };
 
-
-
-
-
-
-
-
-
-            let is_connected = device.is_connected().await?;
             println!("The Device was found:\n    {} - {}", 
                 selected_device, 
                 if is_connected { "Connected" } else { "Not Connected" }
             );
+
             if !is_connected {
-                info!("Connecting...");
+                println!("Connecting...");
                 match device.connect().await {
                     Ok(_) => {},
-                    Err(err) => {
-                        error!("Device cannot be connected: {}", err);
-                        match err {
-                            btleplug::Error::NotConnected => {
-                                println!("Device cannot be connected. A possible reason of this error is that pairing is corrupted.");
-                                println!("You can fix this in two steps:");
-                                println!("    1. Remove the BLE bond on your OS by using your OS's GUI");
-                                println!("    2. Remove the BLE bond on your device by executing the following command:");
-                                println!("        abeehive --unpair <DEVICE>");
-                            },
-                            _ => {}
-                        }
+                    Err(e) => {
+                        error!("error while connecting the device: {}", e);
+                        println!("Device cannot be connected. A possible reason of this error is that pairing is corrupted.");
+                        println!("You can fix this in two steps:");
+                        println!("    1. Remove the BLE bond on your OS by using your OS's GUI");
+                        println!("    2. Remove the BLE bond on your device by executing the following command:");
+                        println!("        abeehive --unpair <DEVICE>");
                         return Ok(())
                     }
                 };
             } 
-
+            println!("Connected.");
+            println!("Discovering BLE service characteristics...");
             let device_chars = match discover_chars(&device).await {
-                Ok(device_chars) => device_chars,
-                Err(err) => {
-                    error!("Error while discovering device characteristics: {:?}", err);
+                Ok(v) => v,
+                Err(e) => {
+                    error!("error while discovering device characteristics: {}", e);
                     Default::default()
                 }
             };
+            println!("BLE service characteristics discovered.");
 
+
+            println!("Verifying the existence and validity of existing pairing.");
             // workaround to test if device is paired
             if let Some(ref chr_conf) = device_chars.configuration {
                 match device.write(chr_conf, &vec![0x00, 0x0d], WriteType::WithResponse).await {
-                    Err(err) => {
-                        match err {
-                            btleplug::Error::Other( ref e ) => {
-                                let err_msg = "The attribute requires authentication before it can be read or written.";
-                                if e.to_string().contains(err_msg) {
-                                    error!("{}", err_msg);
-
-                                    print!  ("It seems that your device is not paired while the requested action requires authentication. ");
-                                    println!("Please pair your device using your OS's GUI and try again. ");
-                                    print!  ("The device may have an old bond to this or another computer. In such a case the OS will not find the device when you try to add. ");
-                                    println!("You can fix this by executing the following command: ");
-                                    println!("    beehive --unpair <DEVICE> ");
-
-                                    return Ok(());
-                                } else {
-                                    return Err(anyhow!("{}", err));
-                                }
-                            }
-                            _ => {
-                                return Err(anyhow!("{}", err));
-                            }
-                        }
+                    Ok(_) => {},
+                    Err(e) => {
+                        error!("error while writing the CONFIGURATION caracteristic of the device: {}", e);
+                        print!  ("It seems that your device is not paired while the requested action requires authentication. ");
+                        println!("Please pair your device using your OS's GUI and try again. ");
+                        print!  ("The device may have an old bond to this or another computer. In such a case the OS will not find the device when you try to add. ");
+                        println!("You can fix this by executing the following command: ");
+                        println!("    beehive --unpair <DEVICE> ");
+                        return Ok(())
                     }
-                    _ => {}
-                };
+                }
             }
+            println!("Peering verified.");
+
 
 
 
@@ -385,25 +254,13 @@ async fn main() -> Result<()> {
 
             if let Some(ref c) = device_chars.model_number {
 
-                let v = device.read(c).await?;
-
-                // let v = match device.read(c).await { 
-                //     Ok(v) => v,
-                //     Err(err) => {
-                //         match err {
-                //             btleplug::Error::Other( ref e ) => {
-                //                 error!("{}", e);
-                //                 println!("It seems that your device is not paired.");
-                //                 println!("The requested action requires authentication.");
-                //                 println!("Please pair your device and try again.");
-                //                 return Ok(())
-                //             }
-                //             _ => {
-                //                 return Err(anyhow!("{}", err));
-                //             }
-                //         }
-                //     }
-                // };
+                let v = match device.read(c).await { 
+                    Ok(v) => v,
+                    Err(e) => {
+                        error!("error while reading the MODEL_NUMBER of the device: {}", e);
+                        return Ok(())
+                    }
+                };
 
                 let s = String::from_utf8_lossy(&v);
                 println!("    Model Number: {}", s);
@@ -411,42 +268,84 @@ async fn main() -> Result<()> {
             }
 
             if let Some(ref c) = device_chars.serial_number {
-                let v = device.read(c).await?;
+                let v = match device.read(c).await{ 
+                    Ok(v) => v,
+                    Err(e) => {
+                        error!("error while reading the SERIAL_NUMBER of the device: {}", e);
+                        return Ok(())
+                    }
+                };
                 let s = hex::encode(&v);
                 println!("    Serial Number: {}", s);
             }
 
             if let Some(ref c) = device_chars.firmware_revision {
-                let v = device.read(c).await?;
+                let v = match device.read(c).await{ 
+                    Ok(v) => v,
+                    Err(e) => {
+                        error!("error while reading the FIRMWARE_REVISION of the device: {}", e);
+                        return Ok(())
+                    }
+                };
                 let s = String::from_utf8_lossy(&v);
                 println!("    Firmware Revision: {}", s);
             }
 
             if let Some(ref c) = device_chars.software_revision {
-                let v = device.read(c).await?;
+                let v = match device.read(c).await{ 
+                    Ok(v) => v,
+                    Err(e) => {
+                        error!("error while reading the SOFTWARE_REVISION of the device: {}", e);
+                        return Ok(())
+                    }
+                };
                 let s = String::from_utf8_lossy(&v);
                 println!("    Software Revision: {}", s);
             }
 
             if let Some(ref c) = device_chars.manufacturer_name {
-                let v = device.read(c).await?;
+                let v = match device.read(c).await{ 
+                    Ok(v) => v,
+                    Err(e) => {
+                        error!("error while reading the MANUFACTURER_NAME of the device: {}", e);
+                        return Ok(())
+                    }
+                };
                 let s = String::from_utf8_lossy(&v);
                 println!("    Manufacturer Name: {}", s);
             }
 
             if let Some(ref c) = device_chars.tx_power_level {
-                let v = device.read(c).await?;
+                let v = match device.read(c).await{ 
+                    Ok(v) => v,
+                    Err(e) => {
+                        error!("error while reading the TX_POWER_LEVEL of the device: {}", e);
+                        return Ok(())
+                    }
+                };
                 // let s = String::from_utf8_lossy(&v);
                 println!("    TX Power Level: {}", v[0]);
             }
 
             if let Some(ref c) = device_chars.battery_level {
-                let v = device.read(c).await?;
+                let v = match device.read(c).await{ 
+                    Ok(v) => v,
+                    Err(e) => {
+                        error!("error while reading the BATTERY_LEVEL of the device: {}", e);
+                        return Ok(())
+                    }
+                };
                 println!("    Battery Level: {}%", v[0]);
             }
 
             if let Some(ref c) = device_chars.battery_state {
-                let v = device.read(c).await?;
+                let v = match device.read(c).await{ 
+                    Ok(v) => v,
+                    Err(e) => {
+                        error!("error while reading the BATTERY_STATE of the device: {}", e);
+                        return Ok(())
+                    }
+                };
                 let s = match v[0] {
                     0x77 => "Charger present and charging.",
                     0x67 => "Charger present but not charging.",
@@ -457,13 +356,25 @@ async fn main() -> Result<()> {
             }
 
             if let Some(ref c) = device_chars.temperature_celsius {
-                let v = device.read(c).await?;
+                let v = match device.read(c).await{ 
+                    Ok(v) => v,
+                    Err(e) => {
+                        error!("error while reading the TEMPERATURE_CELSIUS value of the device: {}", e);
+                        return Ok(())
+                    }
+                };
                 let t = u16::from_le_bytes([v[0], v[1]]) as f32 / 10_f32;
                 println!("    Temperature: {} C", t);
             }
 
             if let Some(ref c) = device_chars.alert_level {
-                let v = device.read(c).await?;
+                let v = match device.read(c).await{ 
+                    Ok(v) => v,
+                    Err(e) => {
+                        error!("error while reading the ALERT_LEVEL of the device: {}", e);
+                        return Ok(())
+                    }
+                };
                 let s = match v[0] {
                     0x00 => "No Alert",
                     0x01 => "Mild Alert",
@@ -475,13 +386,25 @@ async fn main() -> Result<()> {
 
             if let Some(ref c) = device_chars.custom_cmd {
                 // 0x00 - Fast, 0x01 - Slow, 0x02 - Very Fast
-                device.write(c, &vec![0x00], WriteType::WithoutResponse).await?;
+                match device.write(c, &vec![0x00], WriteType::WithoutResponse).await{ 
+                    Ok(v) => v,
+                    Err(e) => {
+                        error!("error while setting the BLE connection speed back to 'Fast': {}", e);
+                        return Ok(())
+                    }
+                };
                 info!("BLE connection is set back to 'Fast'!");
             }
 
-            info!("Disconnecting...");
-            device.disconnect().await?;
-            info!("Disconnected.");
+            println!("Disconnecting...");
+            match device.disconnect().await { 
+                Ok(v) => v,
+                Err(e) => {
+                    error!("error while disconnecting the device: {}", e);
+                    return Ok(())
+                }
+            };
+            println!("Disconnected.");
     
         } else {
             println!("Device {} was not found", selected_device);
@@ -490,85 +413,83 @@ async fn main() -> Result<()> {
 
     }
 
-    if let Some(selected_device) = matches.get_one::<String>("cli") {
 
-        let device = find_abw_device(&manager, selected_device).await?;
+    // *********************************
+    // CLI Argument: "--cli"
+    // *********************************
+
+    if let Some(selected_device) = cli_arg_matches.get_one::<String>("cli") {
+
+        println!("Scanning...");
+        let device = match find_abw_device(&ble_adapter, selected_device).await {
+            Ok(v) => v,
+            Err(e) => {
+                error!("error while searching for the selected device: {}", e);
+                println!("Cannot find the selected Abeeway Device.");
+                println!("Make sure that the device you are looking for is advertizing and try again.");
+                return Ok(())
+            }
+        };
 
         if let Some(device) = device {
 
+            let is_connected = match device.is_connected().await {
+                Ok(v) => v,
+                Err(e) => {
+                    error!("error while checking if the selected device is connected: {}", e);
+                    return Ok(())
+                }
+            };
 
-
-
-
-
-
-
-
-
-            let is_connected = device.is_connected().await?;
             println!("The Device was found:\n    {} - {}", 
                 selected_device, 
                 if is_connected { "Connected" } else { "Not Connected" }
             );
+
             if !is_connected {
-                info!("Connecting...");
+                println!("Connecting...");
                 match device.connect().await {
                     Ok(_) => {},
-                    Err(err) => {
-                        error!("Device cannot be connected: {}", err);
-                        match err {
-                            btleplug::Error::NotConnected => {
-                                println!("Device cannot be connected. A possible reason of this error is that pairing is corrupted.");
-                                println!("You can fix this in two steps:");
-                                println!("    1. Remove the BLE bond on your OS by using your OS's GUI");
-                                println!("    2. Remove the BLE bond on your device by executing the following command:");
-                                println!("        abeehive --unpair <DEVICE>");
-                            },
-                            _ => {}
-                        }
+                    Err(e) => {
+                        error!("error while connecting the device: {}", e);
+                        println!("Device cannot be connected. A possible reason of this error is that pairing is corrupted.");
+                        println!("You can fix this in two steps:");
+                        println!("    1. Remove the BLE bond on your OS by using your OS's GUI");
+                        println!("    2. Remove the BLE bond on your device by executing the following command:");
+                        println!("        abeehive --unpair <DEVICE>");
                         return Ok(())
                     }
                 };
             } 
-
+            println!("Connected.");
+            println!("Discovering BLE service characteristics...");
             let device_chars = match discover_chars(&device).await {
-                Ok(device_chars) => device_chars,
-                Err(err) => {
-                    error!("Error while discovering device characteristics: {:?}", err);
+                Ok(v) => v,
+                Err(e) => {
+                    error!("error while discovering device characteristics: {}", e);
                     Default::default()
                 }
             };
+            println!("BLE service characteristics discovered.");
 
+
+            println!("Verifying the existence and validity of existing pairing.");
             // workaround to test if device is paired
             if let Some(ref chr_conf) = device_chars.configuration {
                 match device.write(chr_conf, &vec![0x00, 0x0d], WriteType::WithResponse).await {
-                    Err(err) => {
-                        match err {
-                            btleplug::Error::Other( ref e ) => {
-                                let err_msg = "The attribute requires authentication before it can be read or written.";
-                                if e.to_string().contains(err_msg) {
-                                    error!("{}", err_msg);
-
-                                    print!  ("It seems that your device is not paired while the requested action requires authentication. ");
-                                    println!("Please pair your device using your OS's GUI and try again. ");
-                                    print!  ("The device may have an old bond to this or another computer. In such a case the OS will not find the device when you try to add. ");
-                                    println!("You can fix this by executing the following command: ");
-                                    println!("    beehive --unpair <DEVICE> ");
-
-                                    return Ok(());
-                                } else {
-                                    return Err(anyhow!("{}", err));
-                                }
-                            }
-                            _ => {
-                                return Err(anyhow!("{}", err));
-                            }
-                        }
+                    Ok(_) => {},
+                    Err(e) => {
+                        error!("error while writing the CONFIGURATION caracteristic of the device: {}", e);
+                        print!  ("It seems that your device is not paired while the requested action requires authentication. ");
+                        println!("Please pair your device using your OS's GUI and try again. ");
+                        print!  ("The device may have an old bond to this or another computer. In such a case the OS will not find the device when you try to add. ");
+                        println!("You can fix this by executing the following command: ");
+                        println!("    beehive --unpair <DEVICE> ");
+                        return Ok(())
                     }
-                    _ => {}
-                };
+                }
             }
-
+            println!("Peering verified.");
 
 
 
@@ -588,16 +509,21 @@ async fn main() -> Result<()> {
                             let mut notification_stream = device.notifications().await?;
                             let (tx_configuration, rx_configuration): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel();
 
-                            tokio::spawn(async move {
+                            let notification_task = tokio::spawn(async move {
                                 while let Some(event) = notification_stream.next().await {
                                     match event.uuid {
-                                        abw::CHR_CUSTOM_RCV_SERIAL_DATA => {
+                                        abw_srv::CHR_CUSTOM_RCV_SERIAL_DATA => {
                                             let mut stdout = io::stdout().lock();
                                             let _ = stdout.write_all(&event.value);
                                             let _ = stdout.flush();
                                         },
-                                        abw::CHR_CONFIGURATION => {
-                                            tx_configuration.send(event.value).unwrap();
+                                        abw_srv::CHR_CONFIGURATION => {
+                                            match tx_configuration.send(event.value) {
+                                                Ok(v) => v,
+                                                Err(e) => {
+                                                    error!("cannot send configuration notification through the selected async channel: {}", e)
+                                                }
+                                            }
                                         },
                                         _ => {},
                                     }
@@ -626,7 +552,7 @@ async fn main() -> Result<()> {
 
 
 
-                            println!("Press Ctrl+C to exit!");
+                            println!("Press Ctrl+C to leave the CLI interface!");
 
                             // These two lines are needed as a workaround to show the loging prompt at start
                             time::sleep(Duration::from_millis(300)).await;
@@ -636,16 +562,40 @@ async fn main() -> Result<()> {
                                 let mut input = String::new();
                                 match std::io::stdin().read_line(&mut input) {
                                     Ok(_n) => {
-                                        device.write(
+
+                                        // Making sure that the strings ends with "\r\n" on both Windows and Linux
+                                        let mut input = input.into_bytes();
+                                        let l = input.len();
+                                        if l < 2 {
+                                            input = vec!['\r' as u8, '\n' as u8];
+                                        }
+                                        if input[l-1] != '\n' as u8 {
+                                            input.push('\r' as u8);
+                                            input.push('\n' as u8);
+                                        } 
+                                        else if input[l-2] != '\r' as u8 {
+                                            input[l-1] = '\r' as u8;
+                                            input.push('\n' as u8);
+                                        }
+
+                                        match device.write(
                                             &chr_cmd, 
-                                            input.as_bytes(), 
-                                            WriteType::WithoutResponse
-                                        ).await?;
+                                            &input, 
+                                            WriteType::WithResponse
+                                        ).await {
+                                            Ok(v) => v,
+                                            Err(e) => {
+                                                error!("cannot write CLI COMMAND to device: {}", e)
+                                            } 
+                                        }
+
                                     }
-                                    Err(err) => error!("input error: {}", err),
+                                    Err(e) => {
+                                        error!("cannot read line from stdin: {}", e)
+                                    }
+
                                 }
                             }
-
 
                             device.unsubscribe(&chr_res).await?;
 
@@ -666,23 +616,34 @@ async fn main() -> Result<()> {
 
                             info!("BLE connection is set back to 'Fast'!");
 
+                            device.unsubscribe(&chr_conf).await?;
+
+                            notification_task.abort();
+
+
                         } else {
-                            return Err(anyhow!("The CONFIGURATION characteristic ({}) cannot be found on the device...", abw::CHR_CONFIGURATION.as_hyphenated()));
+                            return Err(anyhow!("The CONFIGURATION characteristic ({}) cannot be found on the device...", abw_srv::CHR_CONFIGURATION.as_hyphenated()));
                         }
                     } else {
-                        return Err(anyhow!("The CUSTOM_COMMAND characteristic ({}) cannot be found on the device...", abw::CHR_CUSTOM_CMD.as_hyphenated()));
+                        return Err(anyhow!("The CUSTOM_COMMAND characteristic ({}) cannot be found on the device...", abw_srv::CHR_CUSTOM_CMD.as_hyphenated()));
                     } 
                 } else {
-                    return Err(anyhow!("The CUSTOM_RECEIVE_SERIAL_DATA characteristic ({}) cannot be found on the device...", abw::CHR_CUSTOM_RCV_SERIAL_DATA.as_hyphenated()));
+                    return Err(anyhow!("The CUSTOM_RECEIVE_SERIAL_DATA characteristic ({}) cannot be found on the device...", abw_srv::CHR_CUSTOM_RCV_SERIAL_DATA.as_hyphenated()));
                 }
             } else {
-                return Err(anyhow!("The CUSTOM_SEND_CLI_COMMAND characteristic ({}) cannot be found on the device...", abw::CHR_CUSTOM_SEND_CLI_CMD.as_hyphenated()));
+                return Err(anyhow!("The CUSTOM_SEND_CLI_COMMAND characteristic ({}) cannot be found on the device...", abw_srv::CHR_CUSTOM_SEND_CLI_CMD.as_hyphenated()));
             }
 
 
-            info!("Disconnecting...");
-            device.disconnect().await?;
-            info!("Disconnected.");
+            println!("Disconnecting...");
+            match device.disconnect().await { 
+                Ok(v) => v,
+                Err(e) => {
+                    error!("error while disconnecting the device: {}", e);
+                    return Ok(())
+                }
+            };
+            println!("Disconnected.");
 
         } else {
             println!("Device {} was not found", selected_device);
@@ -692,62 +653,63 @@ async fn main() -> Result<()> {
     }
 
 
+    // *********************************
+    // CLI Argument: "--unpair"
+    // *********************************
 
+    if let Some(selected_device) = cli_arg_matches.get_one::<String>("unpair") {
 
-    if let Some(selected_device) = matches.get_one::<String>("unpair") {
-
-        let device = find_abw_device(&manager, selected_device).await?;
+        println!("Scanning...");
+        let device = match find_abw_device(&ble_adapter, selected_device).await {
+            Ok(v) => v,
+            Err(e) => {
+                error!("error while searching for the selected device: {}", e);
+                println!("Cannot find the selected Abeeway Device.");
+                println!("Make sure that the device you are looking for is advertizing and try again.");
+                return Ok(())
+            }
+        };
 
         if let Some(device) = device {
 
+            let is_connected = match device.is_connected().await {
+                Ok(v) => v,
+                Err(e) => {
+                    error!("error while checking if the selected device is connected: {}", e);
+                    return Ok(())
+                }
+            };
 
-
-
-
-
-
-
-
-
-
-
-            let is_connected = device.is_connected().await?;
             println!("The Device was found:\n    {} - {}", 
                 selected_device, 
                 if is_connected { "Connected" } else { "Not Connected" }
             );
+
             if !is_connected {
-                info!("Connecting...");
+                println!("Connecting...");
                 match device.connect().await {
                     Ok(_) => {},
-                    Err(err) => {
-                        error!("Device cannot be connected: {}", err);
-                        match err {
-                            btleplug::Error::NotConnected => {
-                                println!("Device cannot be connected. A possible reason of this error is that pairing is corrupted.");
-                                println!("You can fix this in two steps:");
-                                println!("    1. Remove the BLE bond on your OS by using your OS's GUI");
-                                println!("    2. Remove the BLE bond on your device by executing the following command:");
-                                println!("        abeehive --unpair <DEVICE>");
-                            },
-                            _ => {}
-                        }
+                    Err(e) => {
+                        error!("error while connecting the device: {}", e);
+                        println!("Device cannot be connected. A possible reason of this error is that pairing is corrupted.");
+                        println!("You can fix this in two steps:");
+                        println!("    1. Remove the BLE bond on your OS by using your OS's GUI");
+                        println!("    2. Remove the BLE bond on your device by executing the following command:");
+                        println!("        abeehive --unpair <DEVICE>");
                         return Ok(())
                     }
                 };
             } 
-
+            println!("Connected.");
+            println!("Discovering BLE service characteristics...");
             let device_chars = match discover_chars(&device).await {
-                Ok(device_chars) => device_chars,
-                Err(err) => {
-                    error!("Error while discovering device characteristics: {:?}", err);
+                Ok(v) => v,
+                Err(e) => {
+                    error!("error while discovering device characteristics: {}", e);
                     Default::default()
                 }
             };
-
-
-
-
+            println!("BLE service characteristics discovered.");
 
 
 
@@ -767,9 +729,18 @@ async fn main() -> Result<()> {
 
 
 
-            info!("Disconnecting...");
-            device.disconnect().await?;
-            info!("Disconnected.");
+
+
+
+            println!("Disconnecting...");
+            match device.disconnect().await { 
+                Ok(v) => v,
+                Err(e) => {
+                    error!("error while disconnecting the device: {}", e);
+                    return Ok(())
+                }
+            };
+            println!("Disconnected.");
     
         } else {
             println!("Device {} was not found", selected_device);
@@ -777,10 +748,6 @@ async fn main() -> Result<()> {
         }
 
     }
-
-
-
-
 
 
 
