@@ -2,7 +2,7 @@ use std::time::Duration;
 use std::io::{self, Write};
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Result, Context};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use futures::StreamExt;
@@ -29,16 +29,6 @@ use beehive::abw_ble::{
 #[tokio::main]
 async fn main() -> Result<()> {
 
-
-    // Handling Ctrl-C event
-    let running = Arc::new(AtomicBool::new(true));
-    {
-        let running = running.clone();
-        ctrlc::set_handler(move || {
-            running.store(false, Ordering::SeqCst);
-            println!("\nCtrl+C button pressed...\nPress 'Enter' to exit!");
-        }).expect("error setting Ctrl-C handler");
-    }
 
     // Defining Command Line Options
     let cli_arg_matches = command!() // requires `cargo` feature
@@ -79,18 +69,20 @@ async fn main() -> Result<()> {
     // CLI Argument: "--debug"
     // *********************************
 
-    let log_level = match cli_arg_matches.get_one::<u8>("debug").expect("Count's are defaulted") {
-        0 => log::LevelFilter::Warn,
-        _ => log::LevelFilter::Info,
+    let log_level = match 1+cli_arg_matches.get_one::<u8>("debug").expect("Count's are defaulted") {
+        0 => log::LevelFilter::Error,
+        1 => log::LevelFilter::Warn,
+        2 => log::LevelFilter::Info,
+        3 => log::LevelFilter::Debug,
+        _ => log::LevelFilter::Trace,
     };
-    pretty_env_logger::formatted_builder().filter_level(log_level).init();
-
-    // trace!("a trace example");
-    // debug!("deboogging");
-    // info!("such information");
-    // warn!("o_O");
-    // error!("boom");
-
+    // logger::builder()
+    pretty_env_logger::formatted_builder()
+        // .format(|f, record| {
+        //     writeln!(f, "{}: {}", record.level(), record.args() )
+        // })
+        .filter_level(log_level)
+        .init();
 
 
     // *********************************
@@ -98,19 +90,17 @@ async fn main() -> Result<()> {
     // *********************************
 
     let ble_manager = Manager::new().await
-        .expect("cannot get BLE manager");
+        .with_context(||"cannot get BLE manager")?;
     let ble_adapters = ble_manager.adapters().await
-        .expect("cannot get BLE adapters");
-    let Some(ble_adapter) = ble_adapters.into_iter().nth(0) else {
-        error!("No Bluetooth adapters found");
-        return Ok(());
-    };
+        .with_context(||"cannot get BLE adapters")?;
+    let ble_adapter = ble_adapters.into_iter().nth(0)
+        .ok_or(anyhow!("no bluetooth adapters found"))?;
     match ble_adapter.adapter_info().await {
         Ok(ble_adapter_info) => {
             info!("BLE Adapter was found: {}", &ble_adapter_info);
         },
         Err(e) => {
-            warn!("cannot get ble adapter info: {}", e);
+            warn!("BLE adapter was found but cannot get adapter info: {}", e);
         }
     }
 
@@ -558,7 +548,24 @@ async fn main() -> Result<()> {
                             time::sleep(Duration::from_millis(300)).await;
                             device.write(&chr_cmd, b"\r\n", WriteType::WithoutResponse).await?;
 
-                            while running.load(Ordering::SeqCst) {
+
+
+
+
+                            // Handling Ctrl-C event
+                            let cli_is_running = Arc::new(AtomicBool::new(true));
+                            {
+                                let cli_is_running = cli_is_running.clone();
+                                ctrlc::set_handler(move || {
+                                    cli_is_running.store(false, Ordering::SeqCst);
+                                    println!("\nCtrl+C button pressed...\nPress 'Enter' to exit!");
+                                })
+                                .with_context(||"error while setting Ctrl-C handler")?;
+                            }
+
+                            cli_is_running.store(true, Ordering::SeqCst);
+
+                            while cli_is_running.load(Ordering::SeqCst) {
                                 let mut input = String::new();
                                 match std::io::stdin().read_line(&mut input) {
                                     Ok(_n) => {
@@ -619,6 +626,9 @@ async fn main() -> Result<()> {
                             device.unsubscribe(&chr_conf).await?;
 
                             notification_task.abort();
+
+
+
 
 
                         } else {
