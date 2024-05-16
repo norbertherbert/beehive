@@ -12,8 +12,14 @@ use btleplug::platform::Manager;
 use btleplug::api::{Central, Manager as _, Peripheral as _, WriteType};
 
 use clap::{arg, command, ArgGroup};
-use pretty_env_logger;
-use log::*;
+
+extern crate pretty_env_logger;
+#[macro_use] extern crate log;
+
+// use pretty_env_logger;
+
+// extern crate log;
+// use log::*;
 
 
 use beehive::abw_ble::{
@@ -69,19 +75,19 @@ async fn main() -> Result<()> {
     // CLI Argument: "--debug"
     // *********************************
 
-    let log_level = match 1+cli_arg_matches.get_one::<u8>("debug").expect("Count's are defaulted") {
-        0 => log::LevelFilter::Error,
-        1 => log::LevelFilter::Warn,
-        2 => log::LevelFilter::Info,
-        3 => log::LevelFilter::Debug,
+    let log_level = match cli_arg_matches.get_one::<u8>("debug").expect("Count's are defaulted") {
+        // 0 => log::LevelFilter::Error,
+        0 => log::LevelFilter::Warn,
+        1 => log::LevelFilter::Info,
+        2 => log::LevelFilter::Debug,
         _ => log::LevelFilter::Trace,
     };
-    // logger::builder()
-    pretty_env_logger::formatted_builder()
-        // .format(|f, record| {
-        //     writeln!(f, "{}: {}", record.level(), record.args() )
-        // })
-        .filter_level(log_level)
+    env_logger::builder()
+    // pretty_env_logger::formatted_builder()
+        .format(|f, record| {
+            writeln!(f, "{}: {}", record.level(), record.args() )
+        })
+        .filter(Some("beehive"), log_level)
         .init();
 
 
@@ -194,7 +200,7 @@ async fn main() -> Result<()> {
                 };
             } 
             println!("Connected.");
-            println!("Discovering BLE service characteristics...");
+            info!("Discovering BLE service characteristics...");
             let device_chars = match discover_chars(&device).await {
                 Ok(v) => v,
                 Err(e) => {
@@ -202,10 +208,10 @@ async fn main() -> Result<()> {
                     Default::default()
                 }
             };
-            println!("BLE service characteristics discovered.");
+            info!("BLE service characteristics discovered.");
 
 
-            println!("Verifying the existence and validity of existing pairing.");
+            info!("Verifying the existence and validity of existing pairing.");
             // workaround to test if device is paired
             if let Some(ref chr_conf) = device_chars.configuration {
                 match device.write(chr_conf, &vec![0x00, 0x0d], WriteType::WithResponse).await {
@@ -221,7 +227,7 @@ async fn main() -> Result<()> {
                     }
                 }
             }
-            println!("Peering verified.");
+            info!("Peering verified.");
 
 
 
@@ -452,7 +458,7 @@ async fn main() -> Result<()> {
                 };
             } 
             println!("Connected.");
-            println!("Discovering BLE service characteristics...");
+            info!("Discovering BLE service characteristics...");
             let device_chars = match discover_chars(&device).await {
                 Ok(v) => v,
                 Err(e) => {
@@ -460,10 +466,10 @@ async fn main() -> Result<()> {
                     Default::default()
                 }
             };
-            println!("BLE service characteristics discovered.");
+            info!("BLE service characteristics discovered.");
 
 
-            println!("Verifying the existence and validity of existing pairing.");
+            info!("Verifying the existence and validity of existing pairing.");
             // workaround to test if device is paired
             if let Some(ref chr_conf) = device_chars.configuration {
                 match device.write(chr_conf, &vec![0x00, 0x0d], WriteType::WithResponse).await {
@@ -479,7 +485,7 @@ async fn main() -> Result<()> {
                     }
                 }
             }
-            println!("Peering verified.");
+            info!("Peering verified.");
 
 
 
@@ -711,7 +717,7 @@ async fn main() -> Result<()> {
                 };
             } 
             println!("Connected.");
-            println!("Discovering BLE service characteristics...");
+            info!("Discovering BLE service characteristics...");
             let device_chars = match discover_chars(&device).await {
                 Ok(v) => v,
                 Err(e) => {
@@ -719,7 +725,7 @@ async fn main() -> Result<()> {
                     Default::default()
                 }
             };
-            println!("BLE service characteristics discovered.");
+            info!("BLE service characteristics discovered.");
 
 
 
