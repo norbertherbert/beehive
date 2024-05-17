@@ -221,3 +221,33 @@ Service UUID 0000fe59-0000-1000-8000-00805f9b34fb, primary: true
             }
         } 
     }
+
+
+
+
+Device D6:9F:95:F5:AB:03 (random)
+	Name: ABW421000FDF
+	Alias: ABW421000FDF
+	Appearance: 0x0240 (576)
+	Paired: yes
+	Bonded: yes
+	Trusted: no
+	Blocked: no
+	Connected: yes
+	LegacyPairing: no
+	UUID: Generic Access Profile    (00001800-0000-1000-8000-00805f9b34fb)
+	UUID: Generic Attribute Profile (00001801-0000-1000-8000-00805f9b34fb)
+	UUID: Immediate Alert           (00001802-0000-1000-8000-00805f9b34fb)
+	UUID: Link Loss                 (00001803-0000-1000-8000-00805f9b34fb)
+	UUID: Tx Power                  (00001804-0000-1000-8000-00805f9b34fb)
+	UUID: Device Information        (0000180a-0000-1000-8000-00805f9b34fb)
+	UUID: Battery Service           (0000180f-0000-1000-8000-00805f9b34fb)
+	UUID: Environmental Sensing     (0000181a-0000-1000-8000-00805f9b34fb)
+	UUID: Vendor specific           (00008a45-1212-efde-1523-785feabcd123)
+	UUID: Nordic Semiconductor AS.. (0000fe59-0000-1000-8000-00805f9b34fb)
+	ManufacturerData.Key: 0xffff (65535)
+	ManufacturerData.Value:
+  04 82 32 35 77 c5 8c 39 70 ed 76 14 1c dc fe e5  ..25w..9p.v.....
+  ae 31 b8 d8 d1 15 31 37                          .1....17        
+	RSSI: 0xffffffce (-50)
+	Battery Percentage: 0x64 (100)
