@@ -143,7 +143,7 @@ async fn main() -> Result<()> {
         let found_abw_device_names = match find_abw_device_names(&ble_adapter).await {
             Ok(v) => v,
             Err(e) => {
-                error!("{:?}, {}", e, e);
+                error!("{}", e); debug!("{:?}", e);
                 println!("No Abeeway devices were found.");
                 println!("{}", FIX_FOR_NOT_ADVERTIZING);
                 return Ok(())
@@ -185,7 +185,7 @@ async fn main() -> Result<()> {
         let device = match find_abw_device(&ble_adapter, selected_device).await {
             Ok(v) => v,
             Err(e) => {
-                error!("{:?}, {}", e, e);
+                error!("{}", e); debug!("{:?}", e);
                 println!("Cannot find the selected Abeeway Device.");
                 println!("{}", FIX_FOR_NOT_ADVERTIZING);
                 return Ok(())
@@ -207,7 +207,7 @@ async fn main() -> Result<()> {
                 match device.connect().await {
                     Ok(_) => {},
                     Err(e) => {
-                        error!("{:?}, {}", e, e);
+                        error!("{}", e); debug!("{:?}", e);
                         println!("{}", FIX_FOR_CORRUPTED_PAIRING);
                         return Ok(())
                     }
@@ -228,7 +228,7 @@ async fn main() -> Result<()> {
                 match device.write(chr_conf, &vec![0x00, 0x0d], WriteType::WithResponse).await {
                     Ok(_) => {},
                     Err(e) => {
-                        error!("{:?}, {}", e, e);
+                        error!("{}", e); debug!("{:?}", e);
                         println!("{}", FIX_FOR_NOT_PAIRED);
                         return Ok(())
                     }
@@ -385,7 +385,7 @@ async fn main() -> Result<()> {
         let device = match find_abw_device(&ble_adapter, selected_device).await {
             Ok(v) => v,
             Err(e) => {
-                error!("{:?}, {}", e, e);
+                error!("{}", e); debug!("{:?}", e);
                 println!("Cannot find the selected Abeeway Device.");
                 println!("{}", FIX_FOR_NOT_ADVERTIZING);
                 return Ok(())
@@ -407,7 +407,7 @@ async fn main() -> Result<()> {
                 match device.connect().await {
                     Ok(_) => {},
                     Err(e) => {
-                        error!("{:?}, {}", e, e);
+                        error!("{}", e); debug!("{:?}", e);
                         println!("{}", FIX_FOR_CORRUPTED_PAIRING);
                         return Ok(())
                     }
@@ -429,7 +429,7 @@ async fn main() -> Result<()> {
                 match device.write(chr_conf, &vec![0x00, 0x0d], WriteType::WithResponse).await {
                     Ok(_) => {},
                     Err(e) => {
-                        error!("{:?}, {}", e, e);
+                        error!("{}", e); debug!("{:?}", e);
                         println!("{}", FIX_FOR_NOT_PAIRED);
                         return Ok(())
                     }
@@ -638,7 +638,7 @@ async fn main() -> Result<()> {
         let device = match find_abw_device(&ble_adapter, selected_device).await {
             Ok(v) => v,
             Err(e) => {
-                error!("{:?}, {}", e, e);
+                error!("{}", e); debug!("{:?}", e);
                 println!("Cannot find the selected Abeeway Device.");
                 println!("{}", FIX_FOR_NOT_ADVERTIZING);
                 return Ok(())
@@ -660,7 +660,7 @@ async fn main() -> Result<()> {
                 match device.connect().await {
                     Ok(_) => {},
                     Err(e) => {
-                        error!("{:?}, {}", e, e);
+                        error!("{}", e); debug!("{:?}", e);
                         println!("{}", FIX_FOR_CORRUPTED_PAIRING);
                         return Ok(())
                     }
