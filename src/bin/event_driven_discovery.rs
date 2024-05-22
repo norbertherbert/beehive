@@ -28,8 +28,8 @@ use beehive::abw_ble::{
 // #[macro_use] extern crate log;
 
 // const DEVICE_NAME: &'static str = "ABW1E10002BF";
-const DEVICE_NAME: &'static str = "ABW181000049";
-// const DEVICE_NAME: &'static str = "ABW421000FDF";
+// const DEVICE_NAME: &'static str = "ABW181000049";
+const DEVICE_NAME: &'static str = "ABW421000FDF";
 // const DEVICE_NAME: &'static str = "ABW421000FDE";
 
 
@@ -144,20 +144,20 @@ async fn main() -> Result<()> {
             println!("Characteristics were found.");
 
 
-            // println!("Lookinng for Custom Command characteristic...");
-            // if let Some(chr_custom_cmd) = characteristics.iter().find(|chr| {chr.uuid == abw_srv::CHR_CUSTOM_CMD} ) {
-            //     println!("Custom Command characteristic was found");
+            println!("Lookinng for Custom Command characteristic...");
+            if let Some(chr_custom_cmd) = characteristics.iter().find(|chr| {chr.uuid == abw_srv::CHR_CUSTOM_CMD} ) {
+                println!("Custom Command characteristic was found");
 
-            //     println!("Removing ble bond...");
-            //     device.write(chr_custom_cmd, &vec![0x99], WriteType::WithoutResponse).await
-            //         .with_context(||"couldn't remove BLE bond")?;
-            //     println!("BLE bond has been removed!");
-            //     println!("Please make it sure that it has been removed from our computer's OS too.");
+                println!("Removing ble bond...");
+                device.write(chr_custom_cmd, &vec![0x99], WriteType::WithoutResponse).await
+                    .with_context(||"couldn't remove BLE bond")?;
+                println!("BLE bond has been removed!");
+                println!("Please make it sure that it has been removed from our computer's OS too.");
 
-            // } else {
-            //     println!("Custom Command characteristic was not found");
-            //     return Ok(());
-            // }
+            } else {
+                println!("Custom Command characteristic was not found");
+                return Ok(());
+            }
 
 
         }

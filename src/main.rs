@@ -357,10 +357,10 @@ async fn main() -> Result<()> {
 
             if let Some(ref c) = device_chars.custom_cmd {
                 // 0x00 - Fast, 0x01 - Slow, 0x02 - Very Fast
-                device.write(c, &vec![0x00], WriteType::WithoutResponse).await
-                    .with_context(||"error while setting the BLE connection speed back to 'Fast'")?;
+                device.write(c, &vec![0x01], WriteType::WithoutResponse).await
+                    .with_context(||"error while setting the BLE connection speed back to 'Slow'")?;
 
-                info!("BLE connection is set back to 'Fast'!");
+                info!("BLE connection is set back to 'Slow'!");
             }
 
             // println!("Disconnecting...");
@@ -484,20 +484,28 @@ async fn main() -> Result<()> {
 
 
                             // Set BLE connection to 'Very Fast'!
+                            // 0x00 - Fast, 0x01 - Slow, 0x02 - Very Fast
                             device.write(chr_cust_cmd, &vec![0x02], WriteType::WithoutResponse)
                                 .await.with_context(||"couldn't set BLE connection speed to Very Fast")?;
                             info!("BLE connection is set to 'Very Fast'!");
                             
+
                             // Send the read config_flags command
                             device.write(chr_conf, &vec![0x00, 0x0d], WriteType::WithoutResponse).await
                                 .with_context(||"couldn't send the 'read config_flags' BLE commaand")?;
                             // Receive the actual config_flags value
                             let res_value = rx_configuration.recv()?;
-                            // Write new config_flags (set bit 20 to 1)
-                            device.write(chr_conf, &vec![
-                                0x01, 0x0d, res_value[2], res_value[3] | 1<<4, res_value[4], res_value[5]
-                            ], WriteType::WithoutResponse).await
-                                .with_context(||"couldn't send the 'write config_flags' BLE commaand")?;
+                            // Check if BLE CLI is enabled in config_flags. Check if bit 4 (20) is turned on.
+                            if res_value[3] & 1<<4 == 0 {
+                                // Enable BLE CLI in config_flags. Write new config_flags (set bit 20 to 1).
+                                device.write(chr_conf, &vec![
+                                    0x01, 0x0d, res_value[2], res_value[3] | 1<<4, res_value[4], res_value[5]
+                                ], WriteType::WithoutResponse).await
+                                    .with_context(||"couldn't send the 'write config_flags' BLE commaand")?;
+                                info!("BLE CLI (bit 20) has been enabled in config_flags.");
+                            } else {
+                                info!("BLE CLI (bit 20) is already enabled in config_flags.");
+                            }
 
                             // Turn on BLE CLI
                             device.write(chr_conf, &vec![0x01, 0xf5, 0, 0, 0, 1], WriteType::WithoutResponse).await
@@ -571,27 +579,29 @@ async fn main() -> Result<()> {
                             device.unsubscribe(&chr_res).await
                                 .with_context(||"couldn't unsubscribe from CLI command responses")?;
 
-                            // Send the read config_flags command
-                            device.write(chr_conf, &vec![0x00, 0x0d], WriteType::WithoutResponse).await
-                                .with_context(||"couldn't send the 'read config_flags' command")?;
-                            // Receive the actual config_flags value
-                            let res_value = rx_configuration.recv()
-                                .with_context(||"couldn't receive the config_flags parameter from async channel")?;
-                            // Write new config_flags (set bit 20 to 0)
-                            device.write(chr_conf, &vec![
-                                0x01, 0x0d, res_value[2], res_value[3] & !(1<<4), res_value[4], res_value[5]
-                            ], WriteType::WithoutResponse).await
-                                .with_context(||"coulddn't write the new config_flags value")?;
+                            // // Disable BLE CLI in config flags
+                            // // Send the read config_flags command
+                            // device.write(chr_conf, &vec![0x00, 0x0d], WriteType::WithoutResponse).await
+                            //     .with_context(||"couldn't send the 'read config_flags' command")?;
+                            // // Receive the actual config_flags value
+                            // let res_value = rx_configuration.recv()
+                            //     .with_context(||"couldn't receive the config_flags parameter from async channel")?;
+                            // // Write new config_flags (set bit 20 to 0)
+                            // device.write(chr_conf, &vec![
+                            //     0x01, 0x0d, res_value[2], res_value[3] & !(1<<4), res_value[4], res_value[5]
+                            // ], WriteType::WithoutResponse).await
+                            //     .with_context(||"coulddn't write the new config_flags value")?;
         
                             // Turn off BLE CLI
                             device.write(chr_conf, &vec![0x01, 0xf5, 0, 0, 0, 0], WriteType::WithoutResponse).await
                                 .with_context(||"couldn't send the 'turn off BLE CLI' command")?;
 
-                            // Set BLE connection to 'Fast'!
-                            device.write(chr_cust_cmd, &vec![0x00], WriteType::WithoutResponse).await
-                                .with_context(||"couldn't set the BLE connection speed back to Fast")?;
+                            // Set BLE connection back to 'Slow'!
+                            // 0x00 - Fast, 0x01 - Slow, 0x02 - Very Fast
+                            device.write(chr_cust_cmd, &vec![0x01], WriteType::WithoutResponse).await
+                                .with_context(||"couldn't set the BLE connection speed back to Slow")?;
 
-                            info!("BLE connection is set back to 'Fast'!");
+                            info!("BLE connection is set back to 'Slow'!");
 
                             device.unsubscribe(&chr_conf).await
                                 .with_context(||"couldn't unsubscribe from BLE configuration responses")?;

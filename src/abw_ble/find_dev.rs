@@ -1,4 +1,5 @@
 use std::time::Duration;
+use std::io::{self, Write};
 use anyhow::{Context, Result};
 use tokio::time;
 use btleplug::platform::{Adapter, Peripheral};
@@ -10,12 +11,24 @@ pub async fn find_abw_device_names(adapter: &Adapter) -> Result<Vec<(String, boo
 
     adapter.start_scan(ScanFilter::default()).await.with_context(||"scan on ble adapter failed")?;
 
-    time::sleep(Duration::from_secs(5)).await;
     let mut peripherals = adapter.peripherals().await?;
 
     let mut found_abw_devices: Vec<(String, bool)> = Vec::new();
 
-    for _i in 0..10 {
+
+    let mut stdout = io::stdout().lock();
+    let progress_length: usize = 150;
+
+    for progress in 0..progress_length {
+
+        let bar = create_progress_bar(progress_length, progress);
+
+        let _ = stdout.write(&bar);
+        let _ = stdout.write(b"\r");
+        let _ = stdout.flush();
+
+        time::sleep(Duration::from_millis(100)).await;
+        if (progress < 50) || (progress % 10) != 0 { continue }
 
         for peripheral in peripherals.iter() {
             let properties = peripheral.properties().await.with_context(||"cannot get the properies of a found peripheral")?;
@@ -31,16 +44,17 @@ pub async fn find_abw_device_names(adapter: &Adapter) -> Result<Vec<(String, boo
 
         if found_abw_devices.len() > 0 { break }
 
-        time::sleep(Duration::from_secs(1)).await;
         peripherals = adapter.peripherals().await?;
 
     };
 
+    let _ = stdout.write(b"                                                                                        \r");
 
     Ok(found_abw_devices)
 
 }
 
+use crate::progress_bar::create_progress_bar;
 
 pub async fn find_abw_device(adapter: &Adapter, selected_device: &String) -> Result<Option<Peripheral>> {
 
@@ -48,9 +62,19 @@ pub async fn find_abw_device(adapter: &Adapter, selected_device: &String) -> Res
 
     let mut found_device: Option<Peripheral> = None;
 
-    time::sleep(Duration::from_secs(5)).await;
+    let mut stdout = io::stdout().lock();
+    let progress_length: usize = 150;
 
-    'outher: for _i in 0..10 {
+    'outher: for progress in 0..progress_length {
+
+        let bar = create_progress_bar(progress_length, progress);
+        
+        let _ = stdout.write(&bar);
+        let _ = stdout.write(b"\r");
+        let _ = stdout.flush();
+
+        time::sleep(Duration::from_millis(100)).await;
+        if progress % 10 != 0 { continue }
 
         let peripherals = adapter.peripherals().await.with_context(||"cannot get ble peripherals")?;
 
@@ -62,13 +86,14 @@ pub async fn find_abw_device(adapter: &Adapter, selected_device: &String) -> Res
                 .unwrap_or(String::from("(peripheral name unknown)"));
             if &local_name == selected_device {
                 found_device = Some(peripheral.clone());
+
                 break 'outher;
             }
         }
 
-        time::sleep(Duration::from_secs(1)).await;
-
     };
+
+    let _ = stdout.write(b"                                                                                        \r");
 
     Ok(found_device)
 
