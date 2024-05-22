@@ -75,6 +75,16 @@ async fn main() -> Result<()> {
                 --cli <DEVICE> "Opens a Command Line Interface for the selected device"
             )
         )
+        // .arg(
+        //     arg!(
+        //         --export_config <DEVICE> "Export configuration from device to a file."
+        //     )
+        // )
+        // .arg(
+        //     arg!(
+        //         --import_config <DEVICE> "Import configuration from file to device."
+        //     )
+        // )
         .arg(
             arg!(
                 --unpair <DEVICE> "Remove previously set BLE bond"
@@ -88,8 +98,16 @@ async fn main() -> Result<()> {
         .group(
             ArgGroup::new("group1")
                 .required(true)
-                .args(["list", "cli", "show", "unpair"]),
+                .args([
+                    "list", "cli", "show", "unpair", 
+                    // "import_config", "export_config"
+                ]),
         )
+        // .arg(
+        //     arg!(
+        //         -f --file <FILE> "Filename to import/export connfig from/to."
+        //     )
+        // )
         .get_matches();
 
 
