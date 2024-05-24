@@ -7,6 +7,8 @@ use btleplug::api::{Central, Peripheral as _, ScanFilter};
 
 use super::abw_srv;
 
+const TIMEOUT: Duration = Duration::from_millis(100);
+
 pub async fn find_abw_device_names(adapter: &Adapter) -> Result<Vec<(String, bool)>> {
 
     adapter.start_scan(ScanFilter::default()).await.with_context(||"scan on ble adapter failed")?;
@@ -17,7 +19,7 @@ pub async fn find_abw_device_names(adapter: &Adapter) -> Result<Vec<(String, boo
 
 
     let mut stdout = io::stdout().lock();
-    let progress_length: usize = 150;
+    let progress_length: usize = 100;
 
     for progress in 0..progress_length {
 
@@ -27,8 +29,8 @@ pub async fn find_abw_device_names(adapter: &Adapter) -> Result<Vec<(String, boo
         let _ = stdout.write(b"\r");
         let _ = stdout.flush();
 
-        time::sleep(Duration::from_millis(100)).await;
-        if (progress < 50) || (progress % 10) != 0 { continue }
+        time::sleep(TIMEOUT).await;
+        if (progress < 40) || (progress % 10) != 0 { continue }
 
         for peripheral in peripherals.iter() {
             let properties = peripheral.properties().await.with_context(||"cannot get the properies of a found peripheral")?;
@@ -63,7 +65,7 @@ pub async fn find_abw_device(adapter: &Adapter, selected_device: &String) -> Res
     let mut found_device: Option<Peripheral> = None;
 
     let mut stdout = io::stdout().lock();
-    let progress_length: usize = 150;
+    let progress_length: usize = 100;
 
     'outher: for progress in 0..progress_length {
 
@@ -73,7 +75,7 @@ pub async fn find_abw_device(adapter: &Adapter, selected_device: &String) -> Res
         let _ = stdout.write(b"\r");
         let _ = stdout.flush();
 
-        time::sleep(Duration::from_millis(100)).await;
+        time::sleep(TIMEOUT).await;
         if progress % 10 != 0 { continue }
 
         let peripherals = adapter.peripherals().await.with_context(||"cannot get ble peripherals")?;

@@ -8,7 +8,7 @@ The tool is using cross-platform libraries so that it can be compiled for Window
 Once you have paired your Abeeway device with your Windows OS, you can search for advertizing devices as follows: 
 
 ```
-    beehive -l
+    beehive scan
 ```
 *(Run the above comman in Windows PowerShell.)*
 
@@ -18,7 +18,7 @@ If there are no devices found, you should make sure that your device is advertiz
 After one or more devices were found, you can connect to one of them by executing the following command:
 
 ```
-    beehive --cli <DEVICE>
+    beehive cli <DEVICE>
 ```
 `<DEVICE>` is the device's name as it was printed by the `beehive -l` command.
 Make sure that the tracker is still advertizing, otherwise it cannot be found by your computer.
@@ -28,20 +28,26 @@ After you finished your work with the Command Line Interface press `Ctrl-C` to e
 If later on you want to pair your Abeeway Device with another computer, you need to remove the BLE bond by executing the following command:
 
 ```
-    beehive --unpair <DEVICE>
+    beehive remove-bond <DEVICE>
 ```
 
 All usage options of the `beehive` tool are listed below:
 
 ```
-Usage: beehive.exe <--list|--cli <DEVICE>|--show <DEVICE>>
+Usage: beehive.exe [OPTIONS] [COMMAND]
+
+Commands:
+  scan              Scan for Abeeway devices.
+  show              Show device details.
+  cli               Open Command Line Interface.
+  remove-bond       Remove BLE bond.
+  export-config     Export configuration.
+  import-config     Import configuration.
+  firmware-upgrade  COMMING SOON - Upgrade MCU firmware.
+  help              Print this message or the help of the given subcommand(s)
 
 Options:
-  -l, --list             Lists advertizing Abeeway devices
-      --show <DEVICE>    Shows details of the selected device
-      --cli <DEVICE>     Opens a Command Line Interface for the selected device
-      --unpair <DEVICE>  Remove previously set BLE bond
-  -d, --debug...         Turn debugging information on
-  -h, --help             Print help
-  -V, --version          Print version
+  -v, --verbose...  Show logs for debugging (-v|-vv|-vvv)
+  -h, --help        Print help
+  -V, --version     Print version
 ```

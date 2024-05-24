@@ -1,6 +1,7 @@
+use std::fs::OpenOptions;
 // use std::path::PathBuf;
 use std::time::Duration;
-use std::io::{self, Write};
+use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use anyhow::{anyhow, Result, Context};
@@ -10,7 +11,7 @@ use futures::StreamExt;
 use tokio::time;
 
 use btleplug::platform::Manager;
-use btleplug::api::{Central, Manager as _, Peripheral as _, WriteType};
+use btleplug::api::{Central, Manager as _, Peripheral as _, ValueNotification, WriteType};
 
 use clap::{arg, command, Command};
 
@@ -21,7 +22,11 @@ use beehive::abw_ble::{
     find_dev::{find_abw_device_names, find_abw_device},
     discover_srv::discover_chars,
 };
-
+use beehive::abw_params::{
+    get_param_name_to_id, 
+    // get_param_id_to_name, 
+    PARAMS
+};
 
 const FIX_FOR_NOT_ADVERTIZING: &'static str  = "
 Make sure that the device you are looking for is advertizing and try again.
@@ -61,6 +66,7 @@ async fn main() -> Result<()> {
 
     // Defining Command Line Options
     let cli_arg_matches = command!() // requires `cargo` feature
+        .arg_required_else_help(true)
         .arg(
             arg!(
                 -v --verbose ... "Show logs for debugging (-v|-vv|-vvv)"
@@ -68,14 +74,14 @@ async fn main() -> Result<()> {
         )
         .subcommand(
             Command::new("scan")
-                .about("Scan for advertizing Abeeway devices.")
+                .about("Scan for Abeeway devices.")
         )
         .subcommand(
             Command::new("show")
                 .about("Show device details.")
                 .arg(
                     arg!(
-                        -d --device <DEVICE> "Device name."
+                        [device] "Device name."
                     )
                     .required(true)
                 )
@@ -85,7 +91,7 @@ async fn main() -> Result<()> {
                 .about("Open Command Line Interface.")
                 .arg(
                     arg!(
-                        -d --device <DEVICE> "Device name."
+                        [device] "Device name."
                     )
                     .required(true)
                 )
@@ -95,17 +101,17 @@ async fn main() -> Result<()> {
                 .about("Remove BLE bond.")
                 .arg(
                     arg!(
-                        -d --device <DEVICE> "Device name."
+                        [device] "Device name."
                     )
                     .required(true)
                 )
         )
         .subcommand(
             Command::new("export-config")
-                .about("COMMING SOON - Export configuration.")
+                .about("Export configuration.")
                 .arg(
                     arg!(
-                        -d --device <DEVICE> "The device to export configuration from."
+                        [device] "The device to export configuration from."
                     )
                     .required(true)
                 )
@@ -118,10 +124,10 @@ async fn main() -> Result<()> {
         )
         .subcommand(
             Command::new("import-config")
-                .about("COMMING SOON - Import configuration.")
+                .about("Import configuration.")
                 .arg(
                     arg!(
-                        -d --device <DEVICE> "The device to import configuration to."
+                        [device] "The device to import configuration to."
                     )
                     .required(true)
                 )
@@ -137,13 +143,13 @@ async fn main() -> Result<()> {
                 .about("COMMING SOON - Upgrade MCU firmware.")
                 .arg(
                     arg!(
-                        -d --device <DEVICE> "The device to import configuration to."
+                        [device] "The device to import configuration to."
                     )
                     .required(true)
                 )
                 .arg(
                     arg!(
-                        -f --file  <FILE> "The file to import configuration from."
+                        -f --file <FILE> "The file to import configuration from."
                     )
                     .required(true)
                 )
@@ -229,6 +235,8 @@ async fn main() -> Result<()> {
             }
         }
 
+        return Ok(());
+
     } 
 
     
@@ -282,6 +290,7 @@ async fn main() -> Result<()> {
 
                 info!("Verifying the existence and validity of existing pairing.");
                 
+
                 // workaround to test if device is paired
                 if let Some(ref chr_conf) = device_chars.configuration {
                     match device.write(chr_conf, &vec![0x00, 0x0d], WriteType::WithResponse).await {
@@ -293,7 +302,7 @@ async fn main() -> Result<()> {
                         }
                     }
                 }
-                info!("Peering verified.");
+                info!("Paring verified.");
 
 
 
@@ -432,6 +441,9 @@ async fn main() -> Result<()> {
             }
 
         }
+
+        return Ok(());
+
     }
 
 
@@ -485,29 +497,6 @@ async fn main() -> Result<()> {
                 info!("BLE service characteristics discovered.");
 
 
-                info!("Verifying the existence and validity of existing pairing.");
-
-                // workaround to test if device is paired
-                if let Some(ref chr_conf) = device_chars.configuration {
-                    match device.write(chr_conf, &vec![0x00, 0x0d], WriteType::WithResponse).await {
-                        Ok(_) => {},
-                        Err(e) => {
-                            error!("{}", e); debug!("{:?}", e);
-                            println!("{}", FIX_FOR_NOT_PAIRED);
-                            return Ok(())
-                        }
-                    }
-                }
-                info!("Peering verified.");
-
-
-
-
-
-
-
-
-
 
 
                 if let Some(ref chr_cmd) = device_chars.custom_send_cli_cmd {
@@ -517,8 +506,13 @@ async fn main() -> Result<()> {
 
                                 let mut notification_stream = device.notifications().await
                                     .with_context(||"couldn't get BLE notification stream")?;
-                                let (tx_configuration, rx_configuration): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel();
 
+                                device.subscribe(&chr_conf).await
+                                    .with_context(||"couldn't subscribe to BLE configuration notifications")?;
+                                device.subscribe(&chr_res).await
+                                    .with_context(||"couldn't subscribe to CLI command responses")?;
+
+                                let (tx_configuration, rx_configuration): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel();
                                 let notification_task = tokio::spawn(async move {
                                     while let Some(event) = notification_stream.next().await {
                                         match event.uuid {
@@ -531,7 +525,8 @@ async fn main() -> Result<()> {
                                                 match tx_configuration.send(event.value) {
                                                     Ok(v) => v,
                                                     Err(e) => {
-                                                        error!("cannot send configuration notification through the selected async channel: {:?}, {}", e, e)
+                                                        error!("cannot send configuration notification through the selected async channel: {}", e);
+                                                        debug!("{:?}", e);
                                                     }
                                                 }
                                             },
@@ -539,11 +534,25 @@ async fn main() -> Result<()> {
                                         }
                                     }
                                 });
+                                // // clean the channel before start
+                                // let mut garbage = rx_configuration.try_iter();
+                                // while let Some(_) = garbage.next() {}; 
 
-                                device.subscribe(&chr_conf).await
-                                    .with_context(||"couldn't subscribe to BLE configuration notifications")?;
-                                device.subscribe(&chr_res).await
-                                    .with_context(||"couldn't subscribe to CLI command responses")?;
+
+                                info!("Verifying the existence and validity of existing pairing.");
+                                // new workaround to test if device is paired (request a parameter value)
+                                match device.write(chr_conf, &vec![0x00, 0x00], WriteType::WithResponse).await {
+                                    Ok(_) => {},
+                                    Err(e) => {
+                                        error!("{}", e); debug!("{:?}", e);
+                                        println!("{}", FIX_FOR_NOT_PAIRED);
+                                        return Ok(())
+                                    }
+                                }
+                                // consuming the response
+                                rx_configuration.recv()
+                                    .with_context(||"Cannot read the configuration notification channel.")?;
+                                info!("Paring verified.");
 
 
                                 // Set BLE connection to 'Very Fast'!
@@ -557,7 +566,8 @@ async fn main() -> Result<()> {
                                 device.write(chr_conf, &vec![0x00, 0x0d], WriteType::WithoutResponse).await
                                     .with_context(||"couldn't send the 'read config_flags' BLE commaand")?;
                                 // Receive the actual config_flags value
-                                let res_value = rx_configuration.recv()?;
+                                let res_value = rx_configuration.recv()
+                                    .with_context(||"Cannot read the response to read config_flags command from the notification channel.")?;
                                 // Check if BLE CLI is enabled in config_flags. Check if bit 4 (20) is turned on.
                                 if res_value[3] & 1<<4 == 0 {
                                     // Enable BLE CLI in config_flags. Write new config_flags (set bit 20 to 1).
@@ -627,13 +637,15 @@ async fn main() -> Result<()> {
                                             ).await {
                                                 Ok(v) => v,
                                                 Err(e) => {
-                                                    error!("cannot write CLI COMMAND to device: {:?}, {}", e, e)
+                                                    error!("cannot write CLI COMMAND to device: {}", e);
+                                                    debug!("{:?}", e);
                                                 } 
                                             }
 
                                         }
                                         Err(e) => {
-                                            error!("cannot read line from stdin: {:?}, {}", e, e)
+                                            error!("cannot read line from stdin: {}", e);
+                                            debug!("{:?}", e);
                                         }
 
                                     }
@@ -699,6 +711,9 @@ async fn main() -> Result<()> {
             }
 
         }
+
+        return Ok(());
+
     }
 
 
@@ -746,7 +761,8 @@ async fn main() -> Result<()> {
                 let device_chars = match discover_chars(&device).await {
                     Ok(v) => v,
                     Err(e) => {
-                        error!("error while discovering device characteristics: {:?}, {}", e, e);
+                        error!("error while discovering device characteristics: {}", e);
+                        debug!("{:?}", e);
                         Default::default()
                     }
                 };
@@ -784,6 +800,9 @@ async fn main() -> Result<()> {
             }
 
         }
+
+        return Ok(());
+
     }
 
 
@@ -795,10 +814,270 @@ async fn main() -> Result<()> {
         if let (Some(selected_device), Some(config_path)) = 
             (sub_cmd_matches.get_one::<String>("device"), sub_cmd_matches.get_one::<String>("file")) 
         {
-            println!("Device: {}, Config file: {}", selected_device, config_path);
-            println!("This feature is not implemented yet.");
+
+            println!("Scanning...");
+            let device = match find_abw_device(&ble_adapter, selected_device).await {
+                Ok(v) => v,
+                Err(e) => {
+                    error!("{}", e); debug!("{:?}", e);
+                    println!("Cannot find the selected Abeeway Device.");
+                    println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                    return Ok(())
+                }
+            };
+
+            if let Some(device) = device {
+
+                let is_connected = device.is_connected().await
+                    .with_context(||"error while checking if the selected device is connected")?;
+
+                println!("The Device was found:\n    {} - {}", 
+                    selected_device, 
+                    if is_connected { "Connected" } else { "Not Connected" }
+                );
+
+                if !is_connected {
+                    println!("Connecting...");
+                    match device.connect().await {
+                        Ok(_) => {},
+                        Err(e) => {
+                            error!("{}", e); debug!("{:?}", e);
+                            println!("{}", FIX_FOR_CORRUPTED_PAIRING);
+                            return Ok(())
+                        }
+                    };
+                } 
+                println!("Connected.");
+                info!("Discovering BLE service characteristics...");
+
+                let device_chars =  discover_chars(&device).await
+                    .with_context(||"error while discovering device characteristics")?;
+
+                info!("BLE service characteristics discovered.");
+
+                if let Some(ref chr_cust_cmd) = device_chars.custom_cmd {
+                    if let Some(ref chr_conf) = device_chars.configuration {
+
+                        let mut notification_stream = device.notifications().await
+                            .with_context(||"couldn't get BLE notification stream")?;
+                        
+                        device.subscribe(&chr_conf).await
+                            .with_context(||"couldn't subscribe to BLE configuration notifications")?;
+
+
+                        // let (tx_configuration, rx_configuration): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel();
+                        // let notification_task = tokio::spawn(async move {
+                        //     while let Some(event) = notification_stream.next().await {
+                        //         match event.uuid {
+                        //             abw_srv::CHR_CONFIGURATION => {
+                        //                 match tx_configuration.send(event.value) {
+                        //                     Ok(v) => v,
+                        //                     Err(e) => {
+                        //                         error!("cannot send configuration notification through the selected async channel: {}", e);
+                        //                         debug!("{:?}", e);
+                        //                     }
+                        //                 }
+                        //             },
+                        //             _ => {},
+                        //         }
+                        //     }
+                        // });
+                        // // clean the channel before start
+                        // let mut garbage = rx_configuration.try_iter();
+                        // while let Some(_) = garbage.next() {}; 
+
+
+                        info!("Verifying the existence and validity of existing pairing.");
+                        // new workaround to test if device is paired (request a parameter value)
+                        match device.write(chr_conf, &vec![0x00, 0x00], WriteType::WithResponse).await {
+                            Ok(_) => {},
+                            Err(e) => {
+                                error!("{}", e); debug!("{:?}", e);
+                                println!("{}", FIX_FOR_NOT_PAIRED);
+                                return Ok(())
+                            }
+                        }
+                        // consuming the response
+                        if let Some(_) = notification_stream.next().await {};
+                        info!("Paring verified.");
+
+
+
+
+                        // Set BLE connection to 'Very Fast'!
+                        // 0x00 - Fast, 0x01 - Slow, 0x02 - Very Fast
+                        device.write(chr_cust_cmd, &vec![0x02], WriteType::WithoutResponse)
+                            .await.with_context(||"couldn't set BLE connection speed to Very Fast")?;
+                        info!("BLE connection is set to 'Very Fast'!");
+                        
+
+                        match OpenOptions::new()
+                            .read(true)
+                            .open(config_path)
+                        {
+                            Ok(config_file) => {
+
+                                let config_file = BufReader::new(config_file);
+
+                                println!("Importing device configuration...");
+        
+                                let param_name_to_id = get_param_name_to_id();
+        
+                                for line in config_file.lines() {
+        
+                                    let line = match line {
+                                        Ok(line) => line,
+                                        Err(e) => {
+                                            error!("cannot read one of the lines of the configuration file: {}", e);
+                                            debug!("{:?}", e);
+                                            continue;
+                                        }
+                                    };
+        
+                                    // Remove comments, marked by #
+                                    let line = line
+                                        .split("#")
+                                        .next()
+                                        .expect("Cannot fail")
+                                        .trim();
+                                    
+                                    if line == "" { 
+                                        continue 
+                                    }
+        
+                                    let mut words = line.split('=');
+        
+                                    if let (Some(param_name), Some(param_value)) = (words.next(), words.next()) {
+        
+                                        // If ithis is Some, then there were two '=' characters in the line
+                                        if words.next().is_some() {
+                                            warn!("Invalid line was ignored while parsing the config file: '{}'", line);
+                                            continue;
+                                        }
+        
+                                        // Parse parameter name
+                                        let param_name = param_name.trim(); 
+                                        let Some(param_id) = param_name_to_id.get(param_name) else {
+                                            warn!("Invalid parameter name was ignored while parsing the config file: '{}'", line);
+                                            continue;
+                                        };
+        
+                                        // Parse parameter value
+                                        let Ok(mut param_value) = param_value.trim().parse::<i32>() else {
+                                            warn!("Invalid parameter value was ignored while parsing the config file: '{}'", line);
+                                            continue;
+                                        };
+        
+        
+        
+                                        // It seems that bit 20 of coonfig_flags need to be 0 otherwise the process will stick...
+                                        if param_name == "config_flags" && ( (param_value & (1<<20)) != 0 ) {
+                                            param_value = param_value & !(1<<20);
+                                            debug!("Bit 20 of the config_flags parameter has been temporarily set to 0 (it is needed to keep the BLE connection open).");
+                                        }
+        
+                                        // If trying to set Special Parameter except the 'mode' parameter, then ignore the setting
+                                        if (*param_id >= 245) && (param_name != "mode") {
+                                            warn!("Setting of Special Parameter was ignored while parsing the config file: '{}'", line);
+                                            continue;
+                                        }
+        
+                                        let param_value_bytes = param_value.to_be_bytes();
+        
+                                        // Write 'Parameter Write Request'
+                                        device.write(
+                                            chr_conf, 
+                                            &vec![
+                                                0x01, 
+                                                *param_id, 
+                                                param_value_bytes[0], param_value_bytes[1], param_value_bytes[2], param_value_bytes[3]
+                                            ], 
+                                            WriteType::WithoutResponse
+                                        ).await
+                                            .with_context(||format!("couldn't send the 'write config param: {:02x}' BLE command", param_id))?;
+        
+                                        // Get response as value notification
+                                        let Some(ValueNotification{uuid: _, value: param_val_vec}) = notification_stream.next().await else {
+                                            warn!("No confirmation was received for config param write request: {}", line);
+                                            continue;
+                                        };
+        
+                                        // Evaluate the response
+                                        match param_val_vec[0] {
+                                            0x00 => {
+                                                info!("Parameter sent and accepted: {}", line);
+                                                continue;
+                                            }
+                                            0x01 => {
+                                                warn!("Invalid parameter value was not accepted by the device: '{}'", line);
+                                                continue;
+                                            }
+                                            _ => {
+                                                warn!("The device sent an invalid response to parameter set request: '{}'; Response: 0x{:02x}", &line, param_val_vec[0]);
+                                                continue;
+                                            }
+                                        }
+        
+                                    } else {
+                                        warn!("A line of the configuration file cannot be read and was ignored while parsing: '{}'", &line); // Line number?
+                                        continue;
+                                    }
+        
+                                }
+        
+                                println!("Device configuration has been imported ");
+
+                            },
+
+                            Err(e) => {
+                                match e.kind() {
+                                    std::io::ErrorKind::NotFound => {
+                                        println!("The file '{}' was not found!", config_path);
+                                    },
+                                    _ => {
+                                        Err(e).with_context(||"The configuration file cannot be opened.")?;
+                                    }
+                                }
+                            }
+
+                        };
+
+                        // Set BLE connection back to 'Slow'!
+                        // 0x00 - Fast, 0x01 - Slow, 0x02 - Very Fast
+                        device.write(chr_cust_cmd, &vec![0x01], WriteType::WithoutResponse).await
+                            .with_context(||"couldn't set the BLE connection speed back to Slow")?;
+
+                        info!("BLE connection is set back to 'Slow'!");
+
+                        device.unsubscribe(&chr_conf).await
+                            .with_context(||"couldn't unsubscribe from BLE configuration responses")?;
+
+                        // notification_task.abort();
+
+                    } else {
+                        return Err(anyhow!("The CONFIGURATION characteristic ({}) cannot be found on the device...", abw_srv::CHR_CONFIGURATION.as_hyphenated()));
+                    }
+                } else {
+                    return Err(anyhow!("The CUSTOM_COMMAND characteristic ({}) cannot be found on the device...", abw_srv::CHR_CUSTOM_CMD.as_hyphenated()));
+                } 
+
+
+                // println!("Disconnecting...");
+                // device.disconnect().await
+                //     .with_context(||"error while disconnecting the device")?;
+                // println!("Disconnected.");
+            } else {
+                println!("Device {} was not found", selected_device);
+                println!("{}", FIX_FOR_NOT_ADVERTIZING);
+            }
+
         }
+
+        return Ok(());
+
     }
+
+
 
 
     // *********************************
@@ -806,14 +1085,252 @@ async fn main() -> Result<()> {
     // *********************************
 
     if let Some(sub_cmd_matches) = cli_arg_matches.subcommand_matches("export-config") {
-        if let (Some(selected_device), Some(config_path)) = 
-            (sub_cmd_matches.get_one::<String>("device"), sub_cmd_matches.get_one::<String>("file")) 
-        {
-            println!("Device: {}, Config file: {}", selected_device, config_path);
-            println!("This feature is not implemented yet.");
-        }
-    }
 
+        if let Some(selected_device) = sub_cmd_matches.get_one::<String>("device") {
+
+            println!("Scanning...");
+            let device = match find_abw_device(&ble_adapter, selected_device).await {
+                Ok(v) => v,
+                Err(e) => {
+                    error!("{}", e); debug!("{:?}", e);
+                    println!("Cannot find the selected Abeeway Device.");
+                    println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                    return Ok(())
+                }
+            };
+
+            if let Some(device) = device {
+
+                let is_connected = device.is_connected().await
+                    .with_context(||"error while checking if the selected device is connected")?;
+
+                println!("The Device was found:\n    {} - {}", 
+                    selected_device, 
+                    if is_connected { "Connected" } else { "Not Connected" }
+                );
+
+                if !is_connected {
+                    println!("Connecting...");
+                    match device.connect().await {
+                        Ok(_) => {},
+                        Err(e) => {
+                            error!("{}", e); debug!("{:?}", e);
+                            println!("{}", FIX_FOR_CORRUPTED_PAIRING);
+                            return Ok(())
+                        }
+                    };
+                } 
+                println!("Connected.");
+                info!("Discovering BLE service characteristics...");
+
+                let device_chars =  discover_chars(&device).await
+                    .with_context(||"error while discovering device characteristics")?;
+
+                info!("BLE service characteristics discovered.");
+
+                if let Some(ref chr_cust_cmd) = device_chars.custom_cmd {
+                    if let Some(ref chr_conf) = device_chars.configuration {
+
+                        let mut notification_stream = device.notifications().await
+                            .with_context(||"couldn't get BLE notification stream")?;
+
+                        device.subscribe(&chr_conf).await
+                            .with_context(||"couldn't subscribe to BLE configuration notifications")?;
+
+
+                        // let (tx_configuration, rx_configuration): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel();
+                        // let notification_task = tokio::spawn(async move {
+                        //     while let Some(event) = notification_stream.next().await {
+                        //         match event.uuid {
+                        //             abw_srv::CHR_CONFIGURATION => {
+                        //                 match tx_configuration.send(event.value) {
+                        //                     Ok(v) => v,
+                        //                     Err(e) => {
+                        //                         error!("cannot send configuration notification through the selected async channel: {}", e);
+                        //                         debug!("{:?}", e);
+                        //                     }
+                        //                 }
+                        //             },
+                        //             _ => {},
+                        //         }
+                        //     }
+                        // });
+                        // // clean the channel before start
+                        // let mut garbage = rx_configuration.try_iter();
+                        // while let Some(_) = garbage.next() {}; 
+
+
+                        info!("Verifying the existence and validity of existing pairing.");
+                        // new workaround to test if device is paired (request a parameter value)
+                        match device.write(chr_conf, &vec![0x00, 0x00], WriteType::WithResponse).await {
+                            Ok(_) => {},
+                            Err(e) => {
+                                error!("{}", e); debug!("{:?}", e);
+                                println!("{}", FIX_FOR_NOT_PAIRED);
+                                return Ok(())
+                            }
+                        }
+                        // consuming the response
+                        if let Some(_) = notification_stream.next().await {};
+                        info!("Paring verified.");
+
+
+
+
+                        // Set BLE connection to 'Very Fast'!
+                        // 0x00 - Fast, 0x01 - Slow, 0x02 - Very Fast
+                        device.write(chr_cust_cmd, &vec![0x02], WriteType::WithoutResponse)
+                            .await.with_context(||"couldn't set BLE connection speed to Very Fast")?;
+                        info!("BLE connection is set to 'Very Fast'!");
+                        
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        if let Some(config_path) = sub_cmd_matches.get_one::<String>("file") {
+
+                            match OpenOptions::new()
+                                .write(true)
+                                .create_new(true)
+                                .open(config_path)
+                            {
+                                Ok(config_file) => {
+
+                                    let mut config_file = BufWriter::new(config_file);
+
+                                    println!("Exporting device configuration...");
+
+                                    for param in PARAMS {
+
+                                        // Write 'Parameter Read Request'
+                                        device.write(
+                                            chr_conf, 
+                                            &vec![
+                                                0x00, 
+                                                param.1
+                                            ], 
+                                            WriteType::WithoutResponse
+                                        ).await
+                                            .with_context(||format!("couldn't send the 'read config param: 0x{:02x}' BLE command", param.1))?;
+
+
+                                        // Get response as value notification
+                                        // let param_val_vec = rx_configuration.recv()?;
+                                        let Some(ValueNotification{uuid: _, value: param_val_vec}) = notification_stream.next().await else {
+                                            warn!("No confirmation was received for read request of param '{}',", param.0);
+                                            continue;
+                                        };
+                                        
+                                        let param_val = i32::from_be_bytes([param_val_vec[2], param_val_vec[3], param_val_vec[4], param_val_vec[5]]);
+                                        
+                                        let line = format!("{} = {}", param.0, param_val);
+            
+                                        config_file.write(&line.as_bytes())?;
+                                        config_file.write(b"\r\n")?;
+                                        info!("Config param received: {}", &line);
+            
+                                    }
+                                    config_file.flush()?;
+
+                                    println!("Device configuration has been exported ");
+
+                                }
+                                Err(e) => {
+                                    match e.kind() {
+                                        std::io::ErrorKind::AlreadyExists => {
+                                            println!("The file '{}' already exists!", config_path);
+                                        },
+                                        _ => {
+                                            Err(e).with_context(||"The new configuration file cannot be created.")?
+                                        }
+                                    }
+                                }
+                            }
+
+                        } else {
+
+                            for param in PARAMS {
+
+                                device.write(
+                                    chr_conf, 
+                                    &vec![
+                                        0x00, 
+                                        param.1
+                                    ], 
+                                    WriteType::WithoutResponse
+                                ).await
+                                    .with_context(||format!("couldn't send the 'read config param: 0x{:02x}' BLE command", param.1))?;
+
+                                // Get response as value notification
+                                // let param_val_vec = rx_configuration.recv()?;
+                                let Some(ValueNotification{uuid: _, value: param_val_vec}) = notification_stream.next().await else {
+                                    warn!("No confirmation was received for read request of param '{}',", param.0);
+                                    continue;
+                                };
+
+
+                                let param_val = i32::from_be_bytes([param_val_vec[2], param_val_vec[3], param_val_vec[4], param_val_vec[5]]);
+                                
+                                println!("{} = {}", param.0, param_val);
+    
+                            }
+
+                        };
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        // Set BLE connection back to 'Slow'!
+                        // 0x00 - Fast, 0x01 - Slow, 0x02 - Very Fast
+                        device.write(chr_cust_cmd, &vec![0x01], WriteType::WithoutResponse).await
+                            .with_context(||"couldn't set the BLE connection speed back to Slow")?;
+
+                        info!("BLE connection is set back to 'Slow'!");
+
+                        device.unsubscribe(&chr_conf).await
+                            .with_context(||"couldn't unsubscribe from BLE configuration responses")?;
+
+                        // notification_task.abort();
+
+                    } else {
+                        return Err(anyhow!("The CONFIGURATION characteristic ({}) cannot be found on the device...", abw_srv::CHR_CONFIGURATION.as_hyphenated()));
+                    }
+                } else {
+                    return Err(anyhow!("The CUSTOM_COMMAND characteristic ({}) cannot be found on the device...", abw_srv::CHR_CUSTOM_CMD.as_hyphenated()));
+                } 
+
+
+                // println!("Disconnecting...");
+                // device.disconnect().await
+                //     .with_context(||"error while disconnecting the device")?;
+                // println!("Disconnected.");
+            } else {
+                println!("Device {} was not found", selected_device);
+                println!("{}", FIX_FOR_NOT_ADVERTIZING);
+            }
+
+        }
+
+        return Ok(());
+    }
 
     Ok(())
 
