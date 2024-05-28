@@ -142,6 +142,11 @@ pub const PARAMS: [(&str, u8); 125] = [
 static PARAM_NAME_TO_ID: OnceLock<BTreeMap<&str, u8>> = OnceLock::new();
 static PARAM_ID_TO_NAME: OnceLock<BTreeMap<u8, &str>> = OnceLock::new();
 
+pub const UL_PERIOD :u8 = 0;
+pub const CONFIG_FLAGS :u8 = 13;
+pub const BLE_CLI_ACTIVE :u8 = 245;
+
+
 pub fn get_param_name_to_id() -> &'static BTreeMap<&'static str, u8> {
     PARAM_NAME_TO_ID.get_or_init(|| BTreeMap::from(PARAMS))   
 }

@@ -1,7 +1,7 @@
-use std::fs::OpenOptions;
+use std::fs::{File, OpenOptions};
 // use std::path::PathBuf;
 use std::time::Duration;
-use std::io::{self, BufRead, BufReader, BufWriter, Write};
+use std::io::{self, Read, BufRead, BufReader, BufWriter, Write};
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use anyhow::{anyhow, Result, Context};
@@ -10,7 +10,7 @@ use std::sync::Arc;
 use futures::StreamExt;
 use tokio::time;
 
-use btleplug::platform::Manager;
+use btleplug::platform::{Manager, Peripheral};
 use btleplug::api::{Central, Manager as _, Peripheral as _, ValueNotification, WriteType};
 
 use clap::{arg, command, Command};
@@ -23,9 +23,7 @@ use beehive::abw_ble::{
     discover_srv::discover_chars,
 };
 use beehive::abw_params::{
-    get_param_name_to_id, 
-    // get_param_id_to_name, 
-    PARAMS
+    self, get_param_name_to_id, PARAMS
 };
 
 const FIX_FOR_NOT_ADVERTIZING: &'static str  = "
@@ -46,7 +44,7 @@ You can fix corrupted pairing in the following way:
 2.1.   Remove the BLE bond on your OS by using your OS's GUI
 2.2    Make sure your device is advertizing
 2.3.   Remove the BLE bond on your device by executing the following command:
-           abeehive --unpair <DEVICE>
+           abeehive remove-bond <DEVICE>
 2.4    Pair your device with your computer again.
 ";
 
@@ -55,7 +53,7 @@ It seems that your device is not paired while the requested action requires auth
 Please pair your device using your OS's GUI and try again.
 The device may have an old bond to this or another computer. In such a case the OS will not find the device when you try to add.
 You can fix this by executing the following command
-    beehive --unpair <DEVICE>
+    beehive remove-bond <DEVICE>
 ";
 
 
@@ -139,7 +137,7 @@ async fn main() -> Result<()> {
                 )
         )
         .subcommand(
-            Command::new("firmware-upgrade")
+            Command::new("firmware-update")
                 .about("COMMING SOON - Upgrade MCU firmware.")
                 .arg(
                     arg!(
@@ -293,7 +291,7 @@ async fn main() -> Result<()> {
 
                 // workaround to test if device is paired
                 if let Some(ref chr_conf) = device_chars.configuration {
-                    match device.write(chr_conf, &vec![0x00, 0x0d], WriteType::WithResponse).await {
+                    match device.write(chr_conf, &vec![abw_srv::WR_READ_CONF, abw_params::UL_PERIOD], WriteType::WithResponse).await {
                         Ok(_) => {},
                         Err(e) => {
                             error!("{}", e); debug!("{:?}", e);
@@ -314,8 +312,7 @@ async fn main() -> Result<()> {
 
 
                 if let Some(ref c) = device_chars.custom_cmd {
-                    // 0x00 - Fast, 0x01 - Slow, 0x02 - Very Fast
-                    device.write(c, &vec![0x02], WriteType::WithoutResponse).await
+                    device.write(c, &vec![abw_srv::WR_VERY_FAST_CONN], WriteType::WithoutResponse).await
                         .with_context(||"couldn't set BLE connection speed to Very Fast")?;
                     info!("Connection is set to Very Fast!");
                 }
@@ -393,9 +390,9 @@ async fn main() -> Result<()> {
                         .with_context(||"error while reading the BATTERY_STATE of the device")?;
                     
                     let s = match v[0] {
-                        0x77 => "Charger present and charging.",
-                        0x67 => "Charger present but not charging.",
-                        0x66 => "Charger not present and discharging.",
+                        abw_srv::CHARGER_PRESENT_AND_CHARGING => "Charger present and charging.",
+                        abw_srv::CHARGER_PRESENT_BUT_NOT_CHARGING => "Charger present but not charging.",
+                        abw_srv::CHARGER_NOT_PRESENT_AND_DISCHARGING => "Charger not present and discharging.",
                         _ => "Unknown"
                     };
                     println!("    Battery Power State: {}", s);
@@ -415,17 +412,16 @@ async fn main() -> Result<()> {
                         .with_context(||"error while reading the ALERT_LEVEL of the device")?;
 
                     let s = match v[0] {
-                        0x00 => "No Alert",
-                        0x01 => "Mild Alert",
-                        0x02 => "High Alert",
+                        abw_srv::NO_ALERT => "No Alert",
+                        abw_srv::MILD_ALERT => "Mild Alert",
+                        abw_srv::HIGH_ALERT => "High Alert",
                         _ => "Unknown"
                     };
                     println!("    Alert Level: {}", s);
                 }
 
                 if let Some(ref c) = device_chars.custom_cmd {
-                    // 0x00 - Fast, 0x01 - Slow, 0x02 - Very Fast
-                    device.write(c, &vec![0x01], WriteType::WithoutResponse).await
+                    device.write(c, &vec![abw_srv::WR_SLOW_CONN], WriteType::WithoutResponse).await
                         .with_context(||"error while setting the BLE connection speed back to 'Slow'")?;
 
                     info!("BLE connection is set back to 'Slow'!");
@@ -541,7 +537,7 @@ async fn main() -> Result<()> {
 
                                 info!("Verifying the existence and validity of existing pairing.");
                                 // new workaround to test if device is paired (request a parameter value)
-                                match device.write(chr_conf, &vec![0x00, 0x00], WriteType::WithResponse).await {
+                                match device.write(chr_conf, &vec![abw_srv::WR_READ_CONF, abw_params::UL_PERIOD], WriteType::WithResponse).await {
                                     Ok(_) => {},
                                     Err(e) => {
                                         error!("{}", e); debug!("{:?}", e);
@@ -556,14 +552,15 @@ async fn main() -> Result<()> {
 
 
                                 // Set BLE connection to 'Very Fast'!
-                                // 0x00 - Fast, 0x01 - Slow, 0x02 - Very Fast
-                                device.write(chr_cust_cmd, &vec![0x02], WriteType::WithoutResponse)
+                                device.write(chr_cust_cmd, &vec![abw_srv::WR_VERY_FAST_CONN], WriteType::WithoutResponse)
                                     .await.with_context(||"couldn't set BLE connection speed to Very Fast")?;
                                 info!("BLE connection is set to 'Very Fast'!");
                                 
 
                                 // Send the read config_flags command
-                                device.write(chr_conf, &vec![0x00, 0x0d], WriteType::WithoutResponse).await
+
+
+                                device.write(chr_conf, &vec![abw_srv::WR_READ_CONF, abw_params::CONFIG_FLAGS], WriteType::WithoutResponse).await
                                     .with_context(||"couldn't send the 'read config_flags' BLE commaand")?;
                                 // Receive the actual config_flags value
                                 let res_value = rx_configuration.recv()
@@ -572,7 +569,7 @@ async fn main() -> Result<()> {
                                 if res_value[3] & 1<<4 == 0 {
                                     // Enable BLE CLI in config_flags. Write new config_flags (set bit 20 to 1).
                                     device.write(chr_conf, &vec![
-                                        0x01, 0x0d, res_value[2], res_value[3] | 1<<4, res_value[4], res_value[5]
+                                        abw_srv::WR_WRITE_CONF, abw_params::CONFIG_FLAGS, res_value[2], res_value[3] | 1<<4, res_value[4], res_value[5]
                                     ], WriteType::WithoutResponse).await
                                         .with_context(||"couldn't send the 'write config_flags' BLE commaand")?;
                                     info!("BLE CLI (bit 20) has been enabled in config_flags.");
@@ -581,7 +578,7 @@ async fn main() -> Result<()> {
                                 }
 
                                 // Turn on BLE CLI
-                                device.write(chr_conf, &vec![0x01, 0xf5, 0, 0, 0, 1], WriteType::WithoutResponse).await
+                                device.write(chr_conf, &vec![abw_srv::WR_WRITE_CONF, abw_params::BLE_CLI_ACTIVE, 0, 0, 0, 1], WriteType::WithoutResponse).await
                                     .with_context(||"couldn't send the 'Turn on BLE CLI' commaand")?;
 
 
@@ -654,26 +651,13 @@ async fn main() -> Result<()> {
                                 device.unsubscribe(&chr_res).await
                                     .with_context(||"couldn't unsubscribe from CLI command responses")?;
 
-                                // // Disable BLE CLI in config flags
-                                // // Send the read config_flags command
-                                // device.write(chr_conf, &vec![0x00, 0x0d], WriteType::WithoutResponse).await
-                                //     .with_context(||"couldn't send the 'read config_flags' command")?;
-                                // // Receive the actual config_flags value
-                                // let res_value = rx_configuration.recv()
-                                //     .with_context(||"couldn't receive the config_flags parameter from async channel")?;
-                                // // Write new config_flags (set bit 20 to 0)
-                                // device.write(chr_conf, &vec![
-                                //     0x01, 0x0d, res_value[2], res_value[3] & !(1<<4), res_value[4], res_value[5]
-                                // ], WriteType::WithoutResponse).await
-                                //     .with_context(||"coulddn't write the new config_flags value")?;
-            
+
                                 // Turn off BLE CLI
-                                device.write(chr_conf, &vec![0x01, 0xf5, 0, 0, 0, 0], WriteType::WithoutResponse).await
+                                device.write(chr_conf, &vec![abw_srv::WR_WRITE_CONF, abw_params::BLE_CLI_ACTIVE, 0, 0, 0, 0], WriteType::WithoutResponse).await
                                     .with_context(||"couldn't send the 'turn off BLE CLI' command")?;
 
                                 // Set BLE connection back to 'Slow'!
-                                // 0x00 - Fast, 0x01 - Slow, 0x02 - Very Fast
-                                device.write(chr_cust_cmd, &vec![0x01], WriteType::WithoutResponse).await
+                                device.write(chr_cust_cmd, &vec![abw_srv::WR_SLOW_CONN], WriteType::WithoutResponse).await
                                     .with_context(||"couldn't set the BLE connection speed back to Slow")?;
 
                                 info!("BLE connection is set back to 'Slow'!");
@@ -777,7 +761,7 @@ async fn main() -> Result<()> {
 
                 // Remove thee BLE bond
                 if let Some(ref c) = device_chars.custom_cmd {
-                    device.write(c, &vec![0x99], WriteType::WithoutResponse).await
+                    device.write(c, &vec![abw_srv::WR_CLEAR_BOND], WriteType::WithoutResponse).await
                         .with_context(||"couldn't remove BLE bond")?;
                     println!("BLE bond has been removed!");
                     println!("Please make it sure that it has been removed from our computer's OS too.");
@@ -864,32 +848,9 @@ async fn main() -> Result<()> {
                         device.subscribe(&chr_conf).await
                             .with_context(||"couldn't subscribe to BLE configuration notifications")?;
 
-
-                        // let (tx_configuration, rx_configuration): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel();
-                        // let notification_task = tokio::spawn(async move {
-                        //     while let Some(event) = notification_stream.next().await {
-                        //         match event.uuid {
-                        //             abw_srv::CHR_CONFIGURATION => {
-                        //                 match tx_configuration.send(event.value) {
-                        //                     Ok(v) => v,
-                        //                     Err(e) => {
-                        //                         error!("cannot send configuration notification through the selected async channel: {}", e);
-                        //                         debug!("{:?}", e);
-                        //                     }
-                        //                 }
-                        //             },
-                        //             _ => {},
-                        //         }
-                        //     }
-                        // });
-                        // // clean the channel before start
-                        // let mut garbage = rx_configuration.try_iter();
-                        // while let Some(_) = garbage.next() {}; 
-
-
                         info!("Verifying the existence and validity of existing pairing.");
                         // new workaround to test if device is paired (request a parameter value)
-                        match device.write(chr_conf, &vec![0x00, 0x00], WriteType::WithResponse).await {
+                        match device.write(chr_conf, &vec![abw_srv::WR_READ_CONF, abw_params::UL_PERIOD], WriteType::WithResponse).await {
                             Ok(_) => {},
                             Err(e) => {
                                 error!("{}", e); debug!("{:?}", e);
@@ -905,8 +866,7 @@ async fn main() -> Result<()> {
 
 
                         // Set BLE connection to 'Very Fast'!
-                        // 0x00 - Fast, 0x01 - Slow, 0x02 - Very Fast
-                        device.write(chr_cust_cmd, &vec![0x02], WriteType::WithoutResponse)
+                        device.write(chr_cust_cmd, &vec![abw_srv::WR_VERY_FAST_CONN], WriteType::WithoutResponse)
                             .await.with_context(||"couldn't set BLE connection speed to Very Fast")?;
                         info!("BLE connection is set to 'Very Fast'!");
                         
@@ -988,7 +948,7 @@ async fn main() -> Result<()> {
                                         device.write(
                                             chr_conf, 
                                             &vec![
-                                                0x01, 
+                                                abw_srv::WR_WRITE_CONF, 
                                                 *param_id, 
                                                 param_value_bytes[0], param_value_bytes[1], param_value_bytes[2], param_value_bytes[3]
                                             ], 
@@ -1004,11 +964,11 @@ async fn main() -> Result<()> {
         
                                         // Evaluate the response
                                         match param_val_vec[0] {
-                                            0x00 => {
+                                            abw_srv::NOTIF_CONF_SUCCESS => {
                                                 info!("Parameter sent and accepted: {}", line);
                                                 continue;
                                             }
-                                            0x01 => {
+                                            abw_srv::NOTIF_CONF_INVALID => {
                                                 warn!("Invalid parameter value was not accepted by the device: '{}'", line);
                                                 continue;
                                             }
@@ -1043,8 +1003,7 @@ async fn main() -> Result<()> {
                         };
 
                         // Set BLE connection back to 'Slow'!
-                        // 0x00 - Fast, 0x01 - Slow, 0x02 - Very Fast
-                        device.write(chr_cust_cmd, &vec![0x01], WriteType::WithoutResponse).await
+                        device.write(chr_cust_cmd, &vec![abw_srv::WR_SLOW_CONN], WriteType::WithoutResponse).await
                             .with_context(||"couldn't set the BLE connection speed back to Slow")?;
 
                         info!("BLE connection is set back to 'Slow'!");
@@ -1138,31 +1097,9 @@ async fn main() -> Result<()> {
                             .with_context(||"couldn't subscribe to BLE configuration notifications")?;
 
 
-                        // let (tx_configuration, rx_configuration): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel();
-                        // let notification_task = tokio::spawn(async move {
-                        //     while let Some(event) = notification_stream.next().await {
-                        //         match event.uuid {
-                        //             abw_srv::CHR_CONFIGURATION => {
-                        //                 match tx_configuration.send(event.value) {
-                        //                     Ok(v) => v,
-                        //                     Err(e) => {
-                        //                         error!("cannot send configuration notification through the selected async channel: {}", e);
-                        //                         debug!("{:?}", e);
-                        //                     }
-                        //                 }
-                        //             },
-                        //             _ => {},
-                        //         }
-                        //     }
-                        // });
-                        // // clean the channel before start
-                        // let mut garbage = rx_configuration.try_iter();
-                        // while let Some(_) = garbage.next() {}; 
-
-
                         info!("Verifying the existence and validity of existing pairing.");
                         // new workaround to test if device is paired (request a parameter value)
-                        match device.write(chr_conf, &vec![0x00, 0x00], WriteType::WithResponse).await {
+                        match device.write(chr_conf, &vec![abw_srv::WR_READ_CONF, abw_params::UL_PERIOD], WriteType::WithResponse).await {
                             Ok(_) => {},
                             Err(e) => {
                                 error!("{}", e); debug!("{:?}", e);
@@ -1178,8 +1115,7 @@ async fn main() -> Result<()> {
 
 
                         // Set BLE connection to 'Very Fast'!
-                        // 0x00 - Fast, 0x01 - Slow, 0x02 - Very Fast
-                        device.write(chr_cust_cmd, &vec![0x02], WriteType::WithoutResponse)
+                        device.write(chr_cust_cmd, &vec![abw_srv::WR_VERY_FAST_CONN], WriteType::WithoutResponse)
                             .await.with_context(||"couldn't set BLE connection speed to Very Fast")?;
                         info!("BLE connection is set to 'Very Fast'!");
                         
@@ -1215,7 +1151,7 @@ async fn main() -> Result<()> {
                                         device.write(
                                             chr_conf, 
                                             &vec![
-                                                0x00, 
+                                                abw_srv::WR_READ_CONF, 
                                                 param.1
                                             ], 
                                             WriteType::WithoutResponse
@@ -1263,7 +1199,7 @@ async fn main() -> Result<()> {
                                 device.write(
                                     chr_conf, 
                                     &vec![
-                                        0x00, 
+                                        abw_srv::WR_READ_CONF, 
                                         param.1
                                     ], 
                                     WriteType::WithoutResponse
@@ -1299,8 +1235,7 @@ async fn main() -> Result<()> {
 
 
                         // Set BLE connection back to 'Slow'!
-                        // 0x00 - Fast, 0x01 - Slow, 0x02 - Very Fast
-                        device.write(chr_cust_cmd, &vec![0x01], WriteType::WithoutResponse).await
+                        device.write(chr_cust_cmd, &vec![abw_srv::WR_SLOW_CONN], WriteType::WithoutResponse).await
                             .with_context(||"couldn't set the BLE connection speed back to Slow")?;
 
                         info!("BLE connection is set back to 'Slow'!");
@@ -1331,6 +1266,529 @@ async fn main() -> Result<()> {
 
         return Ok(());
     }
+
+
+
+
+    // *********************************
+    // CLI Argument: "firmware-update"
+    // *********************************
+
+    if let Some(sub_cmd_matches) = cli_arg_matches.subcommand_matches("firmware-update") {
+        if let (Some(selected_device), Some(firmware_path)) = 
+            (sub_cmd_matches.get_one::<String>("device"), sub_cmd_matches.get_one::<String>("file")) 
+        {
+
+            // Try to open the firmware file
+            let mut firmware_file = match OpenOptions::new()
+                .read(true)
+                .open(firmware_path)
+            {
+                Ok(v) => v,
+                Err(e) => {
+                    error!("{}", e); debug!("{:?}", e);
+                    match e.kind() {
+                        std::io::ErrorKind::NotFound => {
+                            println!("The file '{}' was not found!", firmware_path);
+                            return Ok(());
+                        },
+                        _ => {
+                            error!("{}", e); debug!("{:?}", e);
+                            println!("The file '{}' cannot be opened!", firmware_path);
+                            return Ok(());
+                        }
+                    }
+                }
+
+            };
+
+            // Looking for the specified Abeeway device
+            println!("Scanning...");
+            let device = match find_abw_device(&ble_adapter, selected_device).await {
+                Ok(v) => v,
+                Err(e) => {
+                    error!("{}", e); debug!("{:?}", e);
+                    println!("Cannot find the selected Abeeway Device.");
+                    println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                    return Ok(())
+                }
+            };
+            let Some(device) = device else {
+                println!("Device {} was not found", selected_device);
+                println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                return Ok(())
+            };
+
+            // Making sure that the device is connected
+
+            let is_connected = device.is_connected().await
+                .with_context(||"error while checking if the selected device is connected")?;
+
+            println!("The Device was found:\n    {} - {}", 
+                selected_device, 
+                if is_connected { "Connected" } else { "Not Connected" }
+            );
+            if !is_connected {
+                println!("Connecting...");
+                match device.connect().await {
+                    Ok(_) => {},
+                    Err(e) => {
+                        error!("{}", e); debug!("{:?}", e);
+                        println!("{}", FIX_FOR_CORRUPTED_PAIRING);
+                        return Ok(())
+                    }
+                };
+            } 
+            println!("Connected.");
+
+            // Discovering services/characteristics on the device
+
+            info!("Discovering BLE Services...");
+
+            device.discover_services().await
+                .with_context(||"error while discovering BLE Services")?;
+            
+            let characteristics = device.characteristics();
+
+            info!("BLE Service are discovered.");
+
+            // Getting the CUSTOM COMMAND service characteristic
+            let Some(chr_cust_cmd) = characteristics
+                .iter()
+                .find(|chr| { chr.uuid == abw_srv::CHR_CUSTOM_CMD} ) 
+            else {
+                return Err(
+                    anyhow!(
+                        "The CUSTOM_COMMAND characteristic ({}) cannot be found on the device...", 
+                        abw_srv::CHR_CUSTOM_CMD.as_hyphenated()
+                    )
+                );
+            };
+
+            // Set BLE connection to 'Very Fast'!
+            let _res = device.write(chr_cust_cmd, &vec![abw_srv::WR_VERY_FAST_CONN], WriteType::WithResponse)
+                .await.with_context(||"couldn't set BLE connection speed to Very Fast")?;
+
+            let res = device.read(chr_cust_cmd)
+                .await.with_context(||"couldn't read the result of setting BLE connection speed to Very Fast")?;
+            if res.is_empty() || (res[0] != abw_srv::WR_VERY_FAST_CONN) { // Failure value would be 0xaa
+                return Err(
+                    anyhow!(
+                        "BLE Connection Speed was not set to Very Fast.", 
+                    )
+                );
+            }
+
+            info!("BLE connection is set to 'Very Fast'!");
+
+
+
+
+            match fw_update(&mut firmware_file, &device).await {
+                Ok(_) => (),
+                Err(e) => {
+                    error!("{}", e); debug!("{:?}", e);
+                }
+            };
+
+
+
+
+            // Set BLE connection back to 'Slow'!
+            device.write(chr_cust_cmd, &vec![abw_srv::WR_SLOW_CONN], WriteType::WithoutResponse).await
+                .with_context(||"couldn't set the BLE connection speed back to Slow")?;
+
+            info!("BLE connection is set back to 'Slow'!");
+
+            // println!("Disconnecting...");
+            // device.disconnect().await
+            //     .with_context(||"error while disconnecting the device")?;
+            // println!("Disconnected.");
+
+        }
+
+        return Ok(());
+
+    }
+
+    Ok(())
+
+}
+
+
+
+pub async fn fw_update(firmware_file: &mut File, device: &Peripheral) -> Result<()> {
+
+    // Enable BLE Firmware Update
+    
+    // TODO: get DevEUI from CLI!
+    // let dev_eui: u64 = 0x_20635f04_21000fdf;
+    // let dev_eui: u64 = 0x_20635F01_81000049;
+
+    // Get DevEUI
+    // Getting the SERIAL NUMBER service characteristic
+
+    let characteristics = device.characteristics();
+
+    let Some(chr_serial_number) = characteristics
+        .iter()
+        .find(|chr| { chr.uuid == abw_srv::CHR_SERIAL_NUMBER} ) 
+    else {
+        return Err(
+            anyhow!(
+                "The SERIAL_NUMBER characteristic ({}) cannot be found on the device...", 
+                abw_srv::CHR_SERIAL_NUMBER.as_hyphenated()
+            )
+        )
+    };
+
+    let dev_eui_vec = device.read(chr_serial_number).await
+        .with_context(||"error while reading the SERIAL_NUMBER/DevEUI of the device")?;
+
+    println!("DevEUI found: {}", hex::encode(&dev_eui_vec));
+
+    // Getting the CUSTOM MCU FW UPDATE service characteristic
+    let Some(chr_cust_mcu_fw_update) = characteristics
+        .iter()
+        .find(|chr| { chr.uuid == abw_srv::CHR_CUSTOM_MCU_FW_UPDATE } ) 
+    else {
+        return Err(
+            anyhow!(
+                "The CUSTOM MCU FW UPDATE characteristic ({}) cannot be found on the device...", 
+                abw_srv::CHR_CONFIGURATION.as_hyphenated()
+            )
+        );
+    };
+
+    // Subscribe to notifications
+    let mut notification_stream = device.notifications().await
+        .with_context(||"couldn't get BLE notification stream")?;
+
+    device.subscribe(&chr_cust_mcu_fw_update).await
+        .with_context(||"couldn't subscribe to BLE configuration notifications")?;
+
+    let mut enable_fw_update_data: Vec<u8> = Vec::with_capacity(9);
+    enable_fw_update_data.push(abw_srv::WR_ENABLE_DFU);
+    // enable_fw_update_data.extend_from_slice(&dev_eui.to_be_bytes()); 
+    enable_fw_update_data.extend_from_slice(&dev_eui_vec);
+    let _res = device.write(chr_cust_mcu_fw_update, &enable_fw_update_data, WriteType::WithResponse)
+        .await.with_context(||"couldn't enable firmware update")?;
+    let Some(notif) = notification_stream.next().await else {
+        return Err(
+            anyhow!(
+                "No notification came back as a response to Enable Firmware Update over BLE.", 
+            )
+        );                
+    };
+    if notif.value.len() != 2 || notif.value[0] != abw_srv::WR_ENABLE_DFU || notif.value[1] != 0 {
+        return Err(
+            // 0x0013 is sent if DevEUI is invalid
+            anyhow!(
+                "Didn't receive proper value notification as response to Enable Firmware Update over BLE: {:?}",
+                notif.value
+            )
+        );           
+    }
+
+    // Begin firmware update
+
+    let firmware_metadata = firmware_file.metadata()
+        .with_context(||"error while checking meta data of firmware file")?;
+
+    let binary_size = firmware_metadata.len() as u32;
+
+    let mut start_fw_update_data: Vec<u8> = Vec::with_capacity(5);
+    start_fw_update_data.push(abw_srv::WR_START_DFU);
+    start_fw_update_data.extend_from_slice(&binary_size.to_be_bytes()); 
+    let _res = device.write(chr_cust_mcu_fw_update, &start_fw_update_data, WriteType::WithResponse)
+        .await.with_context(||"couldn't begin firmware update")?;
+    let Some(notif) = notification_stream.next().await else {
+        return Err(
+            anyhow!(
+                "No notification came back as a response to Start Firmware Update over BLE.", 
+            )
+        );           
+    };
+    if notif.value.len() != 2 || notif.value[0] != abw_srv::WR_START_DFU || notif.value[1] != 0 {
+        return Err(
+            anyhow!(
+                "Didn't receive proper value notification as response to Start Firmware Update over BLE.", 
+            )
+        );           
+    }
+
+    println!("Firmware update has been started.");
+
+    let mut crc_state = crc16::State::<crc16::XMODEM>::new();
+    let mut chunk: [u8; 16] = [0; 16];
+    // let mut offset: [u8; 3] = [0; 3];
+    let mut o: u32 = 0x000000;
+
+    let num_of_chunks = binary_size / 16;
+    let mut chunk_index: u32 = 0;
+
+    let mut sum: usize = 0;
+
+
+
+
+
+    {
+        let mut stdout = io::stdout().lock();
+
+        match firmware_file.read(&mut chunk[..]) {
+            Ok(n) => {
+
+                if n > 0 {
+
+                    crc_state.update(&chunk);
+
+                    let mut data: Vec<u8> = Vec::with_capacity(20);
+                    data.push(abw_srv::WR_WRITE_BINARY_DATA);
+                    data.extend_from_slice(&o.to_be_bytes()[1..]); 
+                    data.extend_from_slice(&chunk);
+
+                    let _res = device.write(chr_cust_mcu_fw_update, &data, WriteType::WithoutResponse)
+                        .await.with_context(||"couldn't send binary data chunk")?;
+
+                    let s = format!("  FW Chunk: {} / {}\r", 
+                        chunk_index, num_of_chunks
+                    );
+                    let _ = stdout.write_all(s.as_bytes());
+                    let _ = stdout.flush();
+
+
+                    chunk_index += 1;
+                    sum += n;
+
+                }
+            },
+            Err(_e) => {}
+        };
+
+        while match firmware_file.read(&mut chunk[..]) {
+            Ok(n) => {
+
+                if n > 0 {
+
+                    crc_state.update(&chunk);
+
+                    let mut data: Vec<u8> = Vec::with_capacity(20);
+                    data.push(abw_srv::WR_WRITE_BINARY_DATA);
+                    data.extend_from_slice(&(o+16).to_be_bytes()[1..]); 
+                    data.extend_from_slice(&chunk);
+
+                    let _res = device.write(chr_cust_mcu_fw_update, &data, WriteType::WithoutResponse)
+                        .await.with_context(||"couldn't send binary data chunk")?;
+
+                    let Some(notif) = notification_stream.next().await else {
+                        return Err(
+                            anyhow!(
+                                "No notification came back as a response to a Write Binary Data chunk.", 
+                            )
+                        );           
+                    };
+                    if (notif.value.len() != 5) || 
+                        (notif.value[0] != abw_srv::WR_WRITE_BINARY_DATA) || 
+                        (notif.value[1]!=abw_srv::FW_UPDATE_COMPLETED_SUCCESSFULLY) 
+                    {
+                        if notif.value.len() >= 2 && notif.value[1] <= 0x0f {
+                            return Err(
+                                anyhow!(
+                                    "Error recevied as response to Write Binary Data chunk: {}",    
+                                    abw_srv::FW_ERRORS[notif.value[1] as usize]
+                                )
+                            );           
+                        } else {
+                            return Err(
+                                anyhow!(
+                                    "Didn't receive proper value notification as response to a Write Binary Data chunk: {:?}",
+                                    notif.value
+                                )
+                            );
+                        }
+                    }
+
+                    o = u32::from_be_bytes([0, notif.value[2], notif.value[3], notif.value[4]]);
+
+                    let s = format!("  FW Chunk: {} / {}\r", 
+                        chunk_index, num_of_chunks
+                    );
+                    let _ = stdout.write_all(s.as_bytes());
+                    let _ = stdout.flush();
+
+                    chunk_index += 1;
+                    sum += n;
+
+                    true
+
+
+
+            //     if n > 0 {
+
+            //         crc_state.update(&chunk);
+
+            //         let mut data: Vec<u8> = Vec::with_capacity(20);
+            //         data.push(abw_srv::WR_WRITE_BINARY_DATA);
+            //         data.extend_from_slice(&offset); 
+            //         data.extend_from_slice(&chunk); 
+            //         let _res = device.write(chr_cust_mcu_fw_update, &data, WriteType::WithoutResponse)
+            //             .await.with_context(||"couldn't send binary data chunk")?;
+
+            //         let Some(notif) = notification_stream.next().await else {
+            //             return Err(
+            //                 anyhow!(
+            //                     "No notification came back as a response to a Write Binary Data chunk.", 
+            //                 )
+            //             );           
+            //         };
+            //         if (notif.value.len() != 5) || 
+            //             (notif.value[0] != abw_srv::WR_WRITE_BINARY_DATA) || 
+            //             (notif.value[1]!=abw_srv::FW_UPDATE_COMPLETED_SUCCESSFULLY) 
+            //         {
+            //             if notif.value.len() >= 2 && notif.value[1] <= 0x0f {
+            //                 return Err(
+            //                     anyhow!(
+            //                         "Error recevied as response to Write Binary Data chunk: {}",    
+            //                         abw_srv::FW_ERRORS[notif.value[1] as usize]
+            //                     )
+            //                 );           
+            //             } else {
+            //                 return Err(
+            //                     anyhow!(
+            //                         "Didn't receive proper value notification as response to a Write Binary Data chunk: {:?}",
+            //                         notif.value
+            //                     )
+            //                 );
+            //             }
+            //         }
+
+
+
+
+            //         offset[0] = notif.value[2];
+            //         offset[1] = notif.value[3];
+            //         offset[2] = notif.value[4];
+
+            //         println!("FW Chunk: {} / {}", 
+            //             chunk_index, num_of_chunks
+            //         );
+
+            //         chunk_index += 1;
+            //         sum += n;
+
+            //         true
+
+                } else {
+                    false
+                }
+
+            },
+            Err(_e) => {
+                false
+            }
+        } {};
+        
+
+
+        // Notification for the last chunk
+        let Some(notif) = notification_stream.next().await else {
+            return Err(
+                anyhow!(
+                    "No notification came back as a response to a Write Binary Data chunk.", 
+                )
+            );           
+        };
+        if (notif.value.len() != 5) || 
+            (notif.value[0] != abw_srv::WR_WRITE_BINARY_DATA) || 
+            (notif.value[1]!=abw_srv::FW_UPDATE_COMPLETED_SUCCESSFULLY) 
+        {
+            if notif.value.len() >= 2 && notif.value[1] <= 0x0f {
+                return Err(
+                    anyhow!(
+                        "Error recevied as response to Write Binary Data chunk: {}",    
+                        abw_srv::FW_ERRORS[notif.value[1] as usize]
+                    )
+                );           
+            } else {
+                return Err(
+                    anyhow!(
+                        "Didn't receive proper value notification as response to a Write Binary Data chunk: {:?}",
+                        notif.value
+                    )
+                );
+            }
+        }
+
+    }
+
+    let crc = crc_state.get();
+
+    println!("CRC: {}", crc);
+    println!("binary_size: {}", binary_size);
+    println!("bytes sent: {}", sum);
+
+    // SEND CRC
+    let _res = device.write(
+        chr_cust_mcu_fw_update, 
+        &vec![
+            abw_srv::WR_BINARY_DATA_CRC, 
+            (crc >> 8) as u8, (crc & 0xff) as u8
+        ], 
+        WriteType::WithResponse
+    )
+        .await.with_context(||"couldn't send CRC")?;
+
+
+    let Some(notif) = notification_stream.next().await else {
+        return Err(
+            anyhow!(
+                "No notification came back as a response to a Write CRC.", 
+            )
+        );           
+    };
+    if (notif.value.len() != 2) || 
+        (notif.value[0] != abw_srv::WR_BINARY_DATA_CRC) || 
+        (notif.value[1] != abw_srv::FW_UPDATE_COMPLETED_SUCCESSFULLY) 
+    {
+        println!("{:?}", notif.value);
+        if notif.value.len() >= 2 && notif.value[1] <= 0x0f {
+            return Err(
+                anyhow!(
+                    "Error recevied as response to CRC: {}",    
+                    abw_srv::FW_ERRORS[notif.value[1] as usize]
+                )
+            );           
+        } else {
+            return Err(
+                anyhow!(
+                    "Didn't receive proper value notification as response to a Write CRC: {:?}",
+                    notif.value
+                )
+            );
+        }
+    }
+    
+    println!("Firmware has been successfully Updated.");
+
+    // // ABORT Firmware Update
+    // let _res = device.write(chr_cust_mcu_fw_update, &vec![abw_srv::WR_ABORT_DFU], WriteType::WithResponse)
+    //     .await.with_context(||"couldn't abort firmware update")?;
+
+    // let res = device.read(chr_cust_mcu_fw_update)
+    //     .await.with_context(||"couldn't read the result of ABORT DFU command")?;
+    // if res.is_empty() || (res[0] != abw_srv::WR_ABORT_DFU) {
+    //     return Err(
+    //         anyhow!(
+    //             "Failed to abort Firmware Updaate over BLE.", 
+    //         )
+    //     );
+    // }
+
+    // println!("Firmware has been successfully Aborted.");
+    // // println!("Firmware has been updated.");
+
+    // ---------------------------------------------------------------------
 
     Ok(())
 
