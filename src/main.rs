@@ -138,7 +138,7 @@ async fn main() -> Result<()> {
         )
         .subcommand(
             Command::new("firmware-update")
-                .about("COMMING SOON - Upgrade MCU firmware.")
+                .about("Upgrade MCU firmware.")
                 .arg(
                     arg!(
                         [device] "The device to import configuration to."
