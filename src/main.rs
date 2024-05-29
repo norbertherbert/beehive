@@ -1,7 +1,14 @@
-use std::fs::{File, OpenOptions};
+use std::fs::{
+    // File, 
+    OpenOptions
+};
 // use std::path::PathBuf;
 use std::time::Duration;
-use std::io::{self, Read, BufRead, BufReader, BufWriter, Write};
+use std::io::{
+    self, 
+    // Read, 
+    BufRead, BufReader, BufWriter, Write
+};
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use anyhow::{anyhow, Result, Context};
@@ -10,7 +17,10 @@ use std::sync::Arc;
 use futures::StreamExt;
 use tokio::time;
 
-use btleplug::platform::{Manager, Peripheral};
+use btleplug::platform::{
+    Manager, 
+    // Peripheral
+};
 use btleplug::api::{Central, Manager as _, Peripheral as _, ValueNotification, WriteType};
 
 use clap::{arg, command, Command};
@@ -21,41 +31,14 @@ use beehive::abw_ble::{
     abw_srv,
     find_dev::{find_abw_device_names, find_abw_device},
     discover_srv::discover_chars,
+    fw_update::{
+        firmware_update, 
+        // fw_update,
+    },
 };
 use beehive::abw_params::{
     self, get_param_name_to_id, PARAMS
 };
-
-const FIX_FOR_NOT_ADVERTIZING: &'static str  = "
-Make sure that the device you are looking for is advertizing and try again.
-- Abeeway Smart Badges and Microtrackers will start advertizing for a few min right after they are turned on.
-- Abeeway Compact trackers will start advertizing after placing and removing a magnet at their marked sides multiple times.
-";
-
-
-const FIX_FOR_CORRUPTED_PAIRING: &'static str  = "
-Device cannot be connected. It is either not advertizing or its pairing is corrupted.
-- Abeeway Smart Badges and Microtrackers will start advertizing for a few min right after they are turned on.
-- Abeeway Compact trackers will start advertizing after placing and removing a magnet at their marked sides multiple times.
-You can fix corrupted pairing in the following way:
-1.   Turn OFF and then ON Bluetooth on your computer. 
-1.1      Try to connect your device again. If this does not fix your issue, contunie with the next step. 
-2.   Make a new pairing for your device: 
-2.1.   Remove the BLE bond on your OS by using your OS's GUI
-2.2    Make sure your device is advertizing
-2.3.   Remove the BLE bond on your device by executing the following command:
-           abeehive remove-bond <DEVICE>
-2.4    Pair your device with your computer again.
-";
-
-const FIX_FOR_NOT_PAIRED: &'static str  = "
-It seems that your device is not paired while the requested action requires authentication.
-Please pair your device using your OS's GUI and try again.
-The device may have an old bond to this or another computer. In such a case the OS will not find the device when you try to add.
-You can fix this by executing the following command
-    beehive remove-bond <DEVICE>
-";
-
 
 
 #[tokio::main]
@@ -207,14 +190,14 @@ async fn main() -> Result<()> {
             Err(e) => {
                 error!("{}", e); debug!("{:?}", e);
                 println!("No Abeeway devices were found.");
-                println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
                 return Ok(())
             }
         };
         match found_abw_device_names.len() {
             0 => {
                 println!("No Abeeway devices were found.");
-                println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
             },
             1 => {
                 println!("One Abeeway device was found:\n    {} - {}", 
@@ -252,7 +235,7 @@ async fn main() -> Result<()> {
                 Err(e) => {
                     error!("{}", e); debug!("{:?}", e);
                     println!("Cannot find the selected Abeeway Device.");
-                    println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                    println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
                     return Ok(())
                 }
             };
@@ -273,7 +256,7 @@ async fn main() -> Result<()> {
                         Ok(_) => {},
                         Err(e) => {
                             error!("{}", e); debug!("{:?}", e);
-                            println!("{}", FIX_FOR_CORRUPTED_PAIRING);
+                            println!("{}", abw_srv::FIX_FOR_CORRUPTED_PAIRING);
                             return Ok(())
                         }
                     };
@@ -295,7 +278,7 @@ async fn main() -> Result<()> {
                         Ok(_) => {},
                         Err(e) => {
                             error!("{}", e); debug!("{:?}", e);
-                            println!("{}", FIX_FOR_NOT_PAIRED);
+                            println!("{}", abw_srv::FIX_FOR_NOT_PAIRED);
                             return Ok(())
                         }
                     }
@@ -433,7 +416,7 @@ async fn main() -> Result<()> {
                 // println!("Disconnected.");
             } else {
                 println!("Device {} was not found", selected_device);
-                println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
             }
 
         }
@@ -458,7 +441,7 @@ async fn main() -> Result<()> {
                 Err(e) => {
                     error!("{}", e); debug!("{:?}", e);
                     println!("Cannot find the selected Abeeway Device.");
-                    println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                    println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
                     return Ok(())
                 }
             };
@@ -479,7 +462,7 @@ async fn main() -> Result<()> {
                         Ok(_) => {},
                         Err(e) => {
                             error!("{}", e); debug!("{:?}", e);
-                            println!("{}", FIX_FOR_CORRUPTED_PAIRING);
+                            println!("{}", abw_srv::FIX_FOR_CORRUPTED_PAIRING);
                             return Ok(())
                         }
                     };
@@ -541,7 +524,7 @@ async fn main() -> Result<()> {
                                     Ok(_) => {},
                                     Err(e) => {
                                         error!("{}", e); debug!("{:?}", e);
-                                        println!("{}", FIX_FOR_NOT_PAIRED);
+                                        println!("{}", abw_srv::FIX_FOR_NOT_PAIRED);
                                         return Ok(())
                                     }
                                 }
@@ -691,7 +674,7 @@ async fn main() -> Result<()> {
                 // println!("Disconnected.");
             } else {
                 println!("Device {} was not found", selected_device);
-                println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
             }
 
         }
@@ -714,7 +697,7 @@ async fn main() -> Result<()> {
                 Err(e) => {
                     error!("{}", e); debug!("{:?}", e);
                     println!("Cannot find the selected Abeeway Device.");
-                    println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                    println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
                     return Ok(())
                 }
             };
@@ -735,7 +718,7 @@ async fn main() -> Result<()> {
                         Ok(_) => {},
                         Err(e) => {
                             error!("{}", e); debug!("{:?}", e);
-                            println!("{}", FIX_FOR_CORRUPTED_PAIRING);
+                            println!("{}", abw_srv::FIX_FOR_CORRUPTED_PAIRING);
                             return Ok(())
                         }
                     };
@@ -780,7 +763,7 @@ async fn main() -> Result<()> {
                 // println!("Disconnected.");
             } else {
                 println!("Device {} was not found", selected_device);
-                println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
             }
 
         }
@@ -805,7 +788,7 @@ async fn main() -> Result<()> {
                 Err(e) => {
                     error!("{}", e); debug!("{:?}", e);
                     println!("Cannot find the selected Abeeway Device.");
-                    println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                    println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
                     return Ok(())
                 }
             };
@@ -826,7 +809,7 @@ async fn main() -> Result<()> {
                         Ok(_) => {},
                         Err(e) => {
                             error!("{}", e); debug!("{:?}", e);
-                            println!("{}", FIX_FOR_CORRUPTED_PAIRING);
+                            println!("{}", abw_srv::FIX_FOR_CORRUPTED_PAIRING);
                             return Ok(())
                         }
                     };
@@ -854,7 +837,7 @@ async fn main() -> Result<()> {
                             Ok(_) => {},
                             Err(e) => {
                                 error!("{}", e); debug!("{:?}", e);
-                                println!("{}", FIX_FOR_NOT_PAIRED);
+                                println!("{}", abw_srv::FIX_FOR_NOT_PAIRED);
                                 return Ok(())
                             }
                         }
@@ -1027,7 +1010,7 @@ async fn main() -> Result<()> {
                 // println!("Disconnected.");
             } else {
                 println!("Device {} was not found", selected_device);
-                println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
             }
 
         }
@@ -1053,7 +1036,7 @@ async fn main() -> Result<()> {
                 Err(e) => {
                     error!("{}", e); debug!("{:?}", e);
                     println!("Cannot find the selected Abeeway Device.");
-                    println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                    println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
                     return Ok(())
                 }
             };
@@ -1074,7 +1057,7 @@ async fn main() -> Result<()> {
                         Ok(_) => {},
                         Err(e) => {
                             error!("{}", e); debug!("{:?}", e);
-                            println!("{}", FIX_FOR_CORRUPTED_PAIRING);
+                            println!("{}", abw_srv::FIX_FOR_CORRUPTED_PAIRING);
                             return Ok(())
                         }
                     };
@@ -1103,7 +1086,7 @@ async fn main() -> Result<()> {
                             Ok(_) => {},
                             Err(e) => {
                                 error!("{}", e); debug!("{:?}", e);
-                                println!("{}", FIX_FOR_NOT_PAIRED);
+                                println!("{}", abw_srv::FIX_FOR_NOT_PAIRED);
                                 return Ok(())
                             }
                         }
@@ -1259,7 +1242,7 @@ async fn main() -> Result<()> {
                 // println!("Disconnected.");
             } else {
                 println!("Device {} was not found", selected_device);
-                println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
             }
 
         }
@@ -1278,6 +1261,35 @@ async fn main() -> Result<()> {
         if let (Some(selected_device), Some(firmware_path)) = 
             (sub_cmd_matches.get_one::<String>("device"), sub_cmd_matches.get_one::<String>("file")) 
         {
+
+
+
+            match firmware_update(
+                selected_device, 
+                firmware_path, 
+                &ble_adapter, 
+                // fw_update
+            ).await {
+                Ok(()) => (),
+                Err(e) => {
+                    error!("{}", e); debug!("{:?}", e);
+                }
+            };
+
+
+
+            /*
+            //
+            // async fn firmware_update (
+                // selected_device: &String, 
+                // firmware_path: &String, 
+                // ble_adapter: &Adapter, 
+                // visitor: dyn async Fn(firmware_file: &mut File, device: &Peripheral) -> Result<()>
+            // ) -> Result<()>
+            // {
+            //     
+            // }
+            //
 
             // Try to open the firmware file
             let mut firmware_file = match OpenOptions::new()
@@ -1309,13 +1321,13 @@ async fn main() -> Result<()> {
                 Err(e) => {
                     error!("{}", e); debug!("{:?}", e);
                     println!("Cannot find the selected Abeeway Device.");
-                    println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                    println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
                     return Ok(())
                 }
             };
             let Some(device) = device else {
                 println!("Device {} was not found", selected_device);
-                println!("{}", FIX_FOR_NOT_ADVERTIZING);
+                println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
                 return Ok(())
             };
 
@@ -1334,7 +1346,7 @@ async fn main() -> Result<()> {
                     Ok(_) => {},
                     Err(e) => {
                         error!("{}", e); debug!("{:?}", e);
-                        println!("{}", FIX_FOR_CORRUPTED_PAIRING);
+                        println!("{}", abw_srv::FIX_FOR_CORRUPTED_PAIRING);
                         return Ok(())
                     }
                 };
@@ -1405,6 +1417,8 @@ async fn main() -> Result<()> {
             //     .with_context(||"error while disconnecting the device")?;
             // println!("Disconnected.");
 
+            */
+
         }
 
         return Ok(());
@@ -1416,6 +1430,7 @@ async fn main() -> Result<()> {
 }
 
 
+/*
 
 pub async fn fw_update(firmware_file: &mut File, device: &Peripheral) -> Result<()> {
 
@@ -1793,3 +1808,5 @@ pub async fn fw_update(firmware_file: &mut File, device: &Peripheral) -> Result<
     Ok(())
 
 }
+
+*/

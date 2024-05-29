@@ -192,3 +192,33 @@ pub const CHR_ALERT_LEVEL                 :Uuid = Uuid::from_u128(0x_00002a06_00
 pub const NO_ALERT     :u8 = 0x00;
 pub const MILD_ALERT  :u8 = 0x01;
 pub const HIGH_ALERT   :u8 = 0x02;
+
+
+pub const FIX_FOR_NOT_ADVERTIZING: &'static str  = "
+Make sure that the device you are looking for is advertizing and try again.
+- Abeeway Smart Badges and Microtrackers will start advertizing for a few min right after they are turned on.
+- Abeeway Compact trackers will start advertizing after placing and removing a magnet at their marked sides multiple times.
+";
+
+pub const FIX_FOR_CORRUPTED_PAIRING: &'static str  = "
+Device cannot be connected. It is either not advertizing or its pairing is corrupted.
+- Abeeway Smart Badges and Microtrackers will start advertizing for a few min right after they are turned on.
+- Abeeway Compact trackers will start advertizing after placing and removing a magnet at their marked sides multiple times.
+You can fix corrupted pairing in the following way:
+1.   Turn OFF and then ON Bluetooth on your computer. 
+1.1      Try to connect your device again. If this does not fix your issue, contunie with the next step. 
+2.   Make a new pairing for your device: 
+2.1.   Remove the BLE bond on your OS by using your OS's GUI
+2.2    Make sure your device is advertizing
+2.3.   Remove the BLE bond on your device by executing the following command:
+           abeehive remove-bond <DEVICE>
+2.4    Pair your device with your computer again.
+";
+
+pub const FIX_FOR_NOT_PAIRED: &'static str  = "
+It seems that your device is not paired while the requested action requires authentication.
+Please pair your device using your OS's GUI and try again.
+The device may have an old bond to this or another computer. In such a case the OS will not find the device when you try to add.
+You can fix this by executing the following command
+    beehive remove-bond <DEVICE>
+";
