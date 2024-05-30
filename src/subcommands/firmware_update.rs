@@ -14,29 +14,28 @@ use crate::abw_ble::{
 
 
 pub async fn firmware_update (
-    selected_device: &String, 
-    firmware_path: &String, 
+    device_name: &String, 
+    file_path: &String, 
     ble_adapter: &Adapter, 
-    // visitor: fn(&mut File, &Peripheral) -> BoxFuture<'static, Result<()>>
 ) -> Result<()>
 {
 
-    // Try to open the firmware file
-    let mut firmware_file = match OpenOptions::new()
+    // Try to open the file
+    let mut file = match OpenOptions::new()
         .read(true)
-        .open(firmware_path)
+        .open(file_path)
     {
         Ok(v) => v,
         Err(e) => {
             error!("{}", e); debug!("{:?}", e);
             match e.kind() {
                 std::io::ErrorKind::NotFound => {
-                    println!("The file '{}' was not found!", firmware_path);
+                    println!("The file '{}' was not found!", file_path);
                     return Ok(());
                 },
                 _ => {
                     error!("{}", e); debug!("{:?}", e);
-                    println!("The file '{}' cannot be opened!", firmware_path);
+                    println!("The file '{}' cannot be opened!", file_path);
                     return Ok(());
                 }
             }
@@ -46,7 +45,7 @@ pub async fn firmware_update (
 
     // Looking for the specified Abeeway device
     println!("Scanning...");
-    let device = match find_abw_device(&ble_adapter, selected_device).await {
+    let device = match find_abw_device(&ble_adapter, device_name).await {
         Ok(v) => v,
         Err(e) => {
             error!("{}", e); debug!("{:?}", e);
@@ -56,7 +55,7 @@ pub async fn firmware_update (
         }
     };
     let Some(device) = device else {
-        println!("Device {} was not found", selected_device);
+        println!("Device {} was not found", device_name);
         println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
         return Ok(())
     };
@@ -67,7 +66,7 @@ pub async fn firmware_update (
         .with_context(||"error while checking if the selected device is connected")?;
 
     println!("The Device was found:\n    {} - {}", 
-        selected_device, 
+        device_name, 
         if is_connected { "Connected" } else { "Not Connected" }
     );
     if !is_connected {
@@ -92,7 +91,7 @@ pub async fn firmware_update (
     
     let characteristics = device.characteristics();
 
-    info!("BLE Service are discovered.");
+    info!("BLE Services are discovered.");
 
     // Getting the CUSTOM COMMAND service characteristic
     let Some(chr_cust_cmd) = characteristics
@@ -124,17 +123,12 @@ pub async fn firmware_update (
     info!("BLE connection is set to 'Very Fast'!");
 
 
-
-
-
-
-
-
-
-
+    // ********************************************************************************
+    // *** START of Visitor Pattern
+    // ********************************************************************************
 
     println!("Firmware update has been started.");
-    match fw_update(&mut firmware_file, &device).await {
+    match firmware_update_visitor(&mut file, &device).await {
         Ok(_) => {
             println!("");
             println!("Firmware has been successfully Updated.");
@@ -145,13 +139,9 @@ pub async fn firmware_update (
         }
     }
 
-
-        
-        
-
-
-
-
+    // ********************************************************************************
+    // *** END of Visitor Pattern
+    // ********************************************************************************
 
 
     // Set BLE connection back to 'Slow'!
@@ -170,7 +160,12 @@ pub async fn firmware_update (
 }
 
 
-pub async fn fw_update(firmware_file: &mut File, device: &Peripheral) -> Result<()> {
+
+// ********************************************************************************
+// *** The Visitor Function
+// ********************************************************************************
+
+pub async fn firmware_update_visitor(firmware_file: &mut File, device: &Peripheral) -> Result<()> {
 
     let characteristics = device.characteristics();
 
@@ -209,7 +204,7 @@ pub async fn fw_update(firmware_file: &mut File, device: &Peripheral) -> Result<
         .with_context(||"couldn't get BLE notification stream")?;
 
     device.subscribe(&chr_cust_mcu_fw_update).await
-        .with_context(||"couldn't subscribe to BLE configuration notifications")?;
+        .with_context(||"couldn't subscribe to CUSTOM_MCU_FW_UPDATE notifications")?;
 
     let mut enable_fw_update_data: Vec<u8> = Vec::with_capacity(9);
     enable_fw_update_data.push(abw_srv::WR_ENABLE_DFU);

@@ -11,8 +11,9 @@ gps_timeout = 300
 agps_timeout = 45
 gps_ehpe = 5
 gps_convergence = 70
+# config_flags = 18301498   # bit20=1, bit0=0
 config_flags = 18301499   # bit 20 set to 1
-#config_flags = 17252923  # bit 20 set to 0
+# config_flags = 17252923  # bit 20 set to 0
 transmit_strat = 5
 ble_beacon_cnt = 4
 ble_beacon_timeout = 2

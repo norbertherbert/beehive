@@ -6,8 +6,11 @@ use btleplug::platform::{Adapter, Peripheral};
 use btleplug::api::{Central, Peripheral as _, ScanFilter};
 
 use super::abw_srv;
+use crate::progress_bar::create_progress_bar;
+
 
 const TIMEOUT: Duration = Duration::from_millis(100);
+
 
 pub async fn find_abw_device_names(adapter: &Adapter) -> Result<Vec<(String, bool)>> {
 
@@ -56,7 +59,6 @@ pub async fn find_abw_device_names(adapter: &Adapter) -> Result<Vec<(String, boo
 
 }
 
-use crate::progress_bar::create_progress_bar;
 
 pub async fn find_abw_device(adapter: &Adapter, selected_device: &String) -> Result<Option<Peripheral>> {
 
