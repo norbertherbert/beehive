@@ -1,20 +1,21 @@
 
-use std::time::Duration;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::io::{self, Write};
-use std::sync::mpsc::{self, Sender, Receiver};
+use std::time::Duration;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{self, Sender, Receiver};
 use anyhow::{anyhow, Result, Context};
 use futures::StreamExt;
 use btleplug::platform::{Adapter, Peripheral};
 use btleplug::api::{Peripheral as _, WriteType};
 use log::*;
 
-use crate::abw_ble::{
-    abw_srv,
+use crate::abw_ble_utils::{
+    abw,
     find_dev::find_abw_device,
 };
 use crate::abw_params;
+
 
 pub async fn cli (
     device_name: &String, 
@@ -29,13 +30,13 @@ pub async fn cli (
         Err(e) => {
             error!("{}", e); debug!("{:?}", e);
             println!("Cannot find the selected Abeeway Device.");
-            println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
+            println!("{}", abw::FIX_FOR_NOT_ADVERTIZING);
             return Ok(())
         }
     };
     let Some(device) = device else {
         println!("Device {} was not found", device_name);
-        println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
+        println!("{}", abw::FIX_FOR_NOT_ADVERTIZING);
         return Ok(())
     };
 
@@ -54,7 +55,7 @@ pub async fn cli (
             Ok(_) => {},
             Err(e) => {
                 error!("{}", e); debug!("{:?}", e);
-                println!("{}", abw_srv::FIX_FOR_CORRUPTED_PAIRING);
+                println!("{}", abw::FIX_FOR_CORRUPTED_PAIRING);
                 return Ok(())
             }
         };
@@ -75,23 +76,23 @@ pub async fn cli (
     // Getting the CUSTOM COMMAND service characteristic
     let Some(chr_cust_cmd) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_CUSTOM_CMD} ) 
+        .find(|chr| { chr.uuid == abw::CHR_CUSTOM_CMD} ) 
     else {
         return Err(
             anyhow!(
                 "The CUSTOM_COMMAND characteristic ({}) cannot be found on the device...", 
-                abw_srv::CHR_CUSTOM_CMD.as_hyphenated()
+                abw::CHR_CUSTOM_CMD.as_hyphenated()
             )
         );
     };
 
     // Set BLE connection to 'Very Fast'!
-    let _res = device.write(chr_cust_cmd, &vec![abw_srv::WR_VERY_FAST_CONN], WriteType::WithResponse)
+    let _res = device.write(chr_cust_cmd, &vec![abw::WR_VERY_FAST_CONN], WriteType::WithResponse)
         .await.with_context(||"couldn't set BLE connection speed to Very Fast")?;
 
     let res = device.read(chr_cust_cmd)
         .await.with_context(||"couldn't read the result of setting BLE connection speed to Very Fast")?;
-    if res.is_empty() || (res[0] != abw_srv::WR_VERY_FAST_CONN) { // Failure value would be 0xaa
+    if res.is_empty() || (res[0] != abw::WR_VERY_FAST_CONN) { // Failure value would be 0xaa
         return Err(
             anyhow!(
                 "BLE Connection Speed was not set to Very Fast.", 
@@ -124,7 +125,7 @@ pub async fn cli (
 
 
     // Set BLE connection back to 'Slow'!
-    device.write(chr_cust_cmd, &vec![abw_srv::WR_SLOW_CONN], WriteType::WithoutResponse).await
+    device.write(chr_cust_cmd, &vec![abw::WR_SLOW_CONN], WriteType::WithoutResponse).await
         .with_context(||"couldn't set the BLE connection speed back to Slow")?;
 
     info!("BLE connection is set back to 'Slow'!");
@@ -151,12 +152,12 @@ pub async fn cli_visitor(device: &Peripheral) -> Result<()> {
     // Getting the CUSTOM_SEND_CLI_CMD service characteristic
     let Some(chr_custom_send_cli_cmd) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_CUSTOM_SEND_CLI_CMD} ) 
+        .find(|chr| { chr.uuid == abw::CHR_CUSTOM_SEND_CLI_CMD} ) 
     else {
         return Err(
             anyhow!(
                 "The CUSTOM_SEND_CLI_CMD characteristic ({}) cannot be found on the device...", 
-                abw_srv::CHR_CUSTOM_SEND_CLI_CMD.as_hyphenated()
+                abw::CHR_CUSTOM_SEND_CLI_CMD.as_hyphenated()
             )
         );
     };
@@ -164,12 +165,12 @@ pub async fn cli_visitor(device: &Peripheral) -> Result<()> {
     // Getting the CUSTOM_RCV_SERIAL_DATA service characteristic
     let Some(chr_custom_rcv_serial_data) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_CUSTOM_RCV_SERIAL_DATA} ) 
+        .find(|chr| { chr.uuid == abw::CHR_CUSTOM_RCV_SERIAL_DATA} ) 
     else {
         return Err(
             anyhow!(
                 "The CUSTOM_RCV_SERIAL_DATA characteristic ({}) cannot be found on the device...", 
-                abw_srv::CHR_CUSTOM_RCV_SERIAL_DATA.as_hyphenated()
+                abw::CHR_CUSTOM_RCV_SERIAL_DATA.as_hyphenated()
             )
         );
     };
@@ -190,12 +191,12 @@ pub async fn cli_visitor(device: &Peripheral) -> Result<()> {
     // Getting the CONFIGURATION service characteristic
     let Some(chr_configuration) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_CONFIGURATION} ) 
+        .find(|chr| { chr.uuid == abw::CHR_CONFIGURATION} ) 
     else {
         return Err(
             anyhow!(
                 "The CONFIGURATION characteristic ({}) cannot be found on the device...", 
-                abw_srv::CHR_CONFIGURATION.as_hyphenated()
+                abw::CHR_CONFIGURATION.as_hyphenated()
             )
         );
     };
@@ -216,12 +217,12 @@ pub async fn cli_visitor(device: &Peripheral) -> Result<()> {
     let notification_task = tokio::spawn(async move {
         while let Some(event) = notification_stream.next().await {
             match event.uuid {
-                abw_srv::CHR_CUSTOM_RCV_SERIAL_DATA => {
+                abw::CHR_CUSTOM_RCV_SERIAL_DATA => {
                     let mut stdout = io::stdout().lock();
                     let _ = stdout.write_all(&event.value);
                     let _ = stdout.flush();
                 },
-                abw_srv::CHR_CONFIGURATION => {
+                abw::CHR_CONFIGURATION => {
                     match tx_configuration.send(event.value) {
                         Ok(v) => v,
                         Err(e) => {
@@ -240,11 +241,11 @@ pub async fn cli_visitor(device: &Peripheral) -> Result<()> {
 
     info!("Verifying the existence and validity of existing pairing.");
     // new workaround to test if device is paired (request a parameter value)
-    match device.write(chr_configuration, &vec![abw_srv::WR_READ_CONF, abw_params::UL_PERIOD], WriteType::WithResponse).await {
+    match device.write(chr_configuration, &vec![abw::WR_READ_CONF, abw_params::UL_PERIOD], WriteType::WithResponse).await {
         Ok(_) => {},
         Err(e) => {
             error!("{}", e); debug!("{:?}", e);
-            println!("{}", abw_srv::FIX_FOR_NOT_PAIRED);
+            println!("{}", abw::FIX_FOR_NOT_PAIRED);
             return Ok(())
         }
     }
@@ -260,7 +261,7 @@ pub async fn cli_visitor(device: &Peripheral) -> Result<()> {
 
 
     // Send the read config_flags command
-    device.write(chr_configuration, &vec![abw_srv::WR_READ_CONF, abw_params::CONFIG_FLAGS], WriteType::WithoutResponse).await
+    device.write(chr_configuration, &vec![abw::WR_READ_CONF, abw_params::CONFIG_FLAGS], WriteType::WithoutResponse).await
         .with_context(||"couldn't send the 'read config_flags' BLE commaand")?;
     // Receive the actual config_flags value
     let res_value = rx_configuration.recv()
@@ -269,7 +270,7 @@ pub async fn cli_visitor(device: &Peripheral) -> Result<()> {
     if res_value[3] & 1<<4 == 0 {
         // Enable BLE CLI in config_flags. Write new config_flags (set bit 20 to 1).
         device.write(chr_configuration, &vec![
-            abw_srv::WR_WRITE_CONF, abw_params::CONFIG_FLAGS, res_value[2], res_value[3] | 1<<4, res_value[4], res_value[5]
+            abw::WR_WRITE_CONF, abw_params::CONFIG_FLAGS, res_value[2], res_value[3] | 1<<4, res_value[4], res_value[5]
         ], WriteType::WithoutResponse).await
             .with_context(||"couldn't send the 'write config_flags' BLE commaand")?;
         info!("BLE CLI (bit 20) has been enabled in config_flags.");
@@ -278,7 +279,7 @@ pub async fn cli_visitor(device: &Peripheral) -> Result<()> {
     }
 
     // Turn on BLE CLI
-    device.write(chr_configuration, &vec![abw_srv::WR_WRITE_CONF, abw_params::BLE_CLI_ACTIVE, 0, 0, 0, 1], WriteType::WithoutResponse).await
+    device.write(chr_configuration, &vec![abw::WR_WRITE_CONF, abw_params::BLE_CLI_ACTIVE, 0, 0, 0, 1], WriteType::WithoutResponse).await
         .with_context(||"couldn't send the 'Turn on BLE CLI' commaand")?;
 
 
@@ -349,7 +350,7 @@ pub async fn cli_visitor(device: &Peripheral) -> Result<()> {
         .with_context(||"couldn't unsubscribe from CLI command responses")?;
 
     // Turn off BLE CLI
-    device.write(chr_configuration, &vec![abw_srv::WR_WRITE_CONF, abw_params::BLE_CLI_ACTIVE, 0, 0, 0, 0], WriteType::WithoutResponse).await
+    device.write(chr_configuration, &vec![abw::WR_WRITE_CONF, abw_params::BLE_CLI_ACTIVE, 0, 0, 0, 0], WriteType::WithoutResponse).await
         .with_context(||"couldn't send the 'turn off BLE CLI' command")?;
 
     // // Set BLE connection back to 'Slow'!

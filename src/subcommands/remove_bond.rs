@@ -3,8 +3,8 @@ use btleplug::platform::{Adapter, Peripheral};
 use btleplug::api::{Peripheral as _, WriteType};
 use log::*;
 
-use crate::abw_ble::{
-    abw_srv,
+use crate::abw_ble_utils::{
+    abw,
     find_dev::find_abw_device,
 };
 
@@ -22,13 +22,13 @@ pub async fn remove_bond (
         Err(e) => {
             error!("{}", e); debug!("{:?}", e);
             println!("Cannot find the selected Abeeway Device.");
-            println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
+            println!("{}", abw::FIX_FOR_NOT_ADVERTIZING);
             return Ok(())
         }
     };
     let Some(device) = device else {
         println!("Device {} was not found", device_name);
-        println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
+        println!("{}", abw::FIX_FOR_NOT_ADVERTIZING);
         return Ok(())
     };
 
@@ -47,7 +47,7 @@ pub async fn remove_bond (
             Ok(_) => {},
             Err(e) => {
                 error!("{}", e); debug!("{:?}", e);
-                println!("{}", abw_srv::FIX_FOR_CORRUPTED_PAIRING);
+                println!("{}", abw::FIX_FOR_CORRUPTED_PAIRING);
                 return Ok(())
             }
         };
@@ -106,14 +106,14 @@ pub async fn remove_bond_visitor(device: &Peripheral) -> Result<()> {
     // Getting the CUSTOM_COMMAND service characteristic
     let Some(chr_custom_cmd) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_CUSTOM_CMD} ) 
+        .find(|chr| { chr.uuid == abw::CHR_CUSTOM_CMD} ) 
     else {
         return Err(
             anyhow!("cannot find the CUSTOM_COMMAND service characteristics")
         );
     };
 
-    device.write(chr_custom_cmd, &vec![abw_srv::WR_CLEAR_BOND], WriteType::WithoutResponse).await
+    device.write(chr_custom_cmd, &vec![abw::WR_CLEAR_BOND], WriteType::WithoutResponse).await
         .with_context(||"couldn't remove BLE bond")?;
 
     // TODO: Check if write was successful!

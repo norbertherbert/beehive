@@ -1,24 +1,18 @@
 
 use std::fs::{File, OpenOptions};
-use std::io::{
-    BufWriter, 
-    Write
-};
+use std::io::{BufWriter, Write};
 use anyhow::{anyhow, Result, Context};
 use futures::StreamExt;
 use btleplug::platform::{Adapter, Peripheral};
 use btleplug::api::{Peripheral as _, WriteType, ValueNotification};
 use log::*;
 
-use crate::abw_ble::{
-    abw_srv,
+use crate::abw_ble_utils::{
+    abw,
     find_dev::find_abw_device,
 };
-use crate::abw_params::{
-    // self, 
-    // get_param_name_to_id, 
-    PARAMS
-};
+use crate::abw_params::PARAMS;
+
 
 pub async fn export_config (
     device_name: &String,
@@ -63,13 +57,13 @@ pub async fn export_config (
         Err(e) => {
             error!("{}", e); debug!("{:?}", e);
             println!("Cannot find the selected Abeeway Device.");
-            println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
+            println!("{}", abw::FIX_FOR_NOT_ADVERTIZING);
             return Ok(())
         }
     };
     let Some(device) = device else {
         println!("Device {} was not found", device_name);
-        println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
+        println!("{}", abw::FIX_FOR_NOT_ADVERTIZING);
         return Ok(())
     };
 
@@ -88,7 +82,7 @@ pub async fn export_config (
             Ok(_) => {},
             Err(e) => {
                 error!("{}", e); debug!("{:?}", e);
-                println!("{}", abw_srv::FIX_FOR_CORRUPTED_PAIRING);
+                println!("{}", abw::FIX_FOR_CORRUPTED_PAIRING);
                 return Ok(())
             }
         };
@@ -109,23 +103,23 @@ pub async fn export_config (
     // Getting the CUSTOM COMMAND service characteristic
     let Some(chr_cust_cmd) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_CUSTOM_CMD} ) 
+        .find(|chr| { chr.uuid == abw::CHR_CUSTOM_CMD} ) 
     else {
         return Err(
             anyhow!(
                 "The CUSTOM_COMMAND characteristic ({}) cannot be found on the device...", 
-                abw_srv::CHR_CUSTOM_CMD.as_hyphenated()
+                abw::CHR_CUSTOM_CMD.as_hyphenated()
             )
         );
     };
 
     // Set BLE connection to 'Very Fast'!
-    let _res = device.write(chr_cust_cmd, &vec![abw_srv::WR_VERY_FAST_CONN], WriteType::WithResponse)
+    let _res = device.write(chr_cust_cmd, &vec![abw::WR_VERY_FAST_CONN], WriteType::WithResponse)
         .await.with_context(||"couldn't set BLE connection speed to Very Fast")?;
 
     let res = device.read(chr_cust_cmd)
         .await.with_context(||"couldn't read the result of setting BLE connection speed to Very Fast")?;
-    if res.is_empty() || (res[0] != abw_srv::WR_VERY_FAST_CONN) { // Failure value would be 0xaa
+    if res.is_empty() || (res[0] != abw::WR_VERY_FAST_CONN) { // Failure value would be 0xaa
         return Err(
             anyhow!(
                 "BLE Connection Speed was not set to Very Fast.", 
@@ -158,7 +152,7 @@ pub async fn export_config (
 
 
     // Set BLE connection back to 'Slow'!
-    device.write(chr_cust_cmd, &vec![abw_srv::WR_SLOW_CONN], WriteType::WithoutResponse).await
+    device.write(chr_cust_cmd, &vec![abw::WR_SLOW_CONN], WriteType::WithoutResponse).await
         .with_context(||"couldn't set the BLE connection speed back to Slow")?;
 
     info!("BLE connection is set back to 'Slow'!");
@@ -185,12 +179,12 @@ pub async fn export_config_visitor(config_file: &mut Option<File>, device: &Peri
     // Getting the CONFIGURATION service characteristic
     let Some(chr_configuration) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_CONFIGURATION} ) 
+        .find(|chr| { chr.uuid == abw::CHR_CONFIGURATION} ) 
     else {
         return Err(
             anyhow!(
                 "The CONFIGURATION characteristic ({}) cannot be found on the device...", 
-                abw_srv::CHR_CONFIGURATION.as_hyphenated()
+                abw::CHR_CONFIGURATION.as_hyphenated()
             )
         );
     };
@@ -214,7 +208,7 @@ pub async fn export_config_visitor(config_file: &mut Option<File>, device: &Peri
                 device.write(
                     chr_configuration, 
                     &vec![
-                        abw_srv::WR_READ_CONF, 
+                        abw::WR_READ_CONF, 
                         param.1
                     ], 
                     WriteType::WithoutResponse
@@ -248,7 +242,7 @@ pub async fn export_config_visitor(config_file: &mut Option<File>, device: &Peri
                 device.write(
                     chr_configuration, 
                     &vec![
-                        abw_srv::WR_READ_CONF, 
+                        abw::WR_READ_CONF, 
                         param.1
                     ], 
                     WriteType::WithoutResponse

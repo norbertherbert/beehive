@@ -19,8 +19,8 @@ use tokio::time::timeout;
 use std::time::Duration;
 
 
-use beehive::abw_ble::{
-    abw_srv,
+use beehive::abw_ble_utils::{
+    abw,
     // find_dev::{find_abw_device_names, find_abw_device},
     // discover_srv::discover_chars,
 };
@@ -145,7 +145,7 @@ async fn main() -> Result<()> {
 
 
             println!("Lookinng for Custom Command characteristic...");
-            if let Some(chr_custom_cmd) = characteristics.iter().find(|chr| {chr.uuid == abw_srv::CHR_CUSTOM_CMD} ) {
+            if let Some(chr_custom_cmd) = characteristics.iter().find(|chr| {chr.uuid == abw::CHR_CUSTOM_CMD} ) {
                 println!("Custom Command characteristic was found");
 
                 println!("Removing ble bond...");

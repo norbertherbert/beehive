@@ -7,8 +7,8 @@ use btleplug::platform::{Adapter, Peripheral};
 use btleplug::api::{Peripheral as _, WriteType};
 use log::*;
 
-use crate::abw_ble::{
-    abw_srv,
+use crate::abw_ble_utils::{
+    abw,
     find_dev::find_abw_device,
 };
 
@@ -50,13 +50,13 @@ pub async fn firmware_update (
         Err(e) => {
             error!("{}", e); debug!("{:?}", e);
             println!("Cannot find the selected Abeeway Device.");
-            println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
+            println!("{}", abw::FIX_FOR_NOT_ADVERTIZING);
             return Ok(())
         }
     };
     let Some(device) = device else {
         println!("Device {} was not found", device_name);
-        println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
+        println!("{}", abw::FIX_FOR_NOT_ADVERTIZING);
         return Ok(())
     };
 
@@ -75,7 +75,7 @@ pub async fn firmware_update (
             Ok(_) => {},
             Err(e) => {
                 error!("{}", e); debug!("{:?}", e);
-                println!("{}", abw_srv::FIX_FOR_CORRUPTED_PAIRING);
+                println!("{}", abw::FIX_FOR_CORRUPTED_PAIRING);
                 return Ok(())
             }
         };
@@ -96,23 +96,23 @@ pub async fn firmware_update (
     // Getting the CUSTOM COMMAND service characteristic
     let Some(chr_cust_cmd) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_CUSTOM_CMD} ) 
+        .find(|chr| { chr.uuid == abw::CHR_CUSTOM_CMD} ) 
     else {
         return Err(
             anyhow!(
                 "The CUSTOM_COMMAND characteristic ({}) cannot be found on the device...", 
-                abw_srv::CHR_CUSTOM_CMD.as_hyphenated()
+                abw::CHR_CUSTOM_CMD.as_hyphenated()
             )
         );
     };
 
     // Set BLE connection to 'Very Fast'!
-    let _res = device.write(chr_cust_cmd, &vec![abw_srv::WR_VERY_FAST_CONN], WriteType::WithResponse)
+    let _res = device.write(chr_cust_cmd, &vec![abw::WR_VERY_FAST_CONN], WriteType::WithResponse)
         .await.with_context(||"couldn't set BLE connection speed to Very Fast")?;
 
     let res = device.read(chr_cust_cmd)
         .await.with_context(||"couldn't read the result of setting BLE connection speed to Very Fast")?;
-    if res.is_empty() || (res[0] != abw_srv::WR_VERY_FAST_CONN) { // Failure value would be 0xaa
+    if res.is_empty() || (res[0] != abw::WR_VERY_FAST_CONN) { // Failure value would be 0xaa
         return Err(
             anyhow!(
                 "BLE Connection Speed was not set to Very Fast.", 
@@ -145,7 +145,7 @@ pub async fn firmware_update (
 
 
     // Set BLE connection back to 'Slow'!
-    device.write(chr_cust_cmd, &vec![abw_srv::WR_SLOW_CONN], WriteType::WithoutResponse).await
+    device.write(chr_cust_cmd, &vec![abw::WR_SLOW_CONN], WriteType::WithoutResponse).await
         .with_context(||"couldn't set the BLE connection speed back to Slow")?;
 
     info!("BLE connection is set back to 'Slow'!");
@@ -171,12 +171,12 @@ pub async fn firmware_update_visitor(firmware_file: &mut File, device: &Peripher
 
     let Some(chr_serial_number) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_SERIAL_NUMBER} ) 
+        .find(|chr| { chr.uuid == abw::CHR_SERIAL_NUMBER} ) 
     else {
         return Err(
             anyhow!(
                 "The SERIAL_NUMBER characteristic ({}) cannot be found on the device...", 
-                abw_srv::CHR_SERIAL_NUMBER.as_hyphenated()
+                abw::CHR_SERIAL_NUMBER.as_hyphenated()
             )
         )
     };
@@ -189,12 +189,12 @@ pub async fn firmware_update_visitor(firmware_file: &mut File, device: &Peripher
     // Getting the CUSTOM MCU FW UPDATE service characteristic
     let Some(chr_cust_mcu_fw_update) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_CUSTOM_MCU_FW_UPDATE } ) 
+        .find(|chr| { chr.uuid == abw::CHR_CUSTOM_MCU_FW_UPDATE } ) 
     else {
         return Err(
             anyhow!(
                 "The CUSTOM MCU FW UPDATE characteristic ({}) cannot be found on the device...", 
-                abw_srv::CHR_CONFIGURATION.as_hyphenated()
+                abw::CHR_CONFIGURATION.as_hyphenated()
             )
         );
     };
@@ -207,7 +207,7 @@ pub async fn firmware_update_visitor(firmware_file: &mut File, device: &Peripher
         .with_context(||"couldn't subscribe to CUSTOM_MCU_FW_UPDATE notifications")?;
 
     let mut enable_fw_update_data: Vec<u8> = Vec::with_capacity(9);
-    enable_fw_update_data.push(abw_srv::WR_ENABLE_DFU);
+    enable_fw_update_data.push(abw::WR_ENABLE_DFU);
     // enable_fw_update_data.extend_from_slice(&dev_eui.to_be_bytes()); 
     enable_fw_update_data.extend_from_slice(&dev_eui_vec);
     let _res = device.write(chr_cust_mcu_fw_update, &enable_fw_update_data, WriteType::WithResponse)
@@ -219,7 +219,7 @@ pub async fn firmware_update_visitor(firmware_file: &mut File, device: &Peripher
             )
         );                
     };
-    if notif.value.len() != 2 || notif.value[0] != abw_srv::WR_ENABLE_DFU || notif.value[1] != 0 {
+    if notif.value.len() != 2 || notif.value[0] != abw::WR_ENABLE_DFU || notif.value[1] != 0 {
         return Err(
             // 0x0013 is sent if DevEUI is invalid
             anyhow!(
@@ -237,7 +237,7 @@ pub async fn firmware_update_visitor(firmware_file: &mut File, device: &Peripher
     let binary_size = firmware_metadata.len() as u32;
 
     let mut start_fw_update_data: Vec<u8> = Vec::with_capacity(5);
-    start_fw_update_data.push(abw_srv::WR_START_DFU);
+    start_fw_update_data.push(abw::WR_START_DFU);
     start_fw_update_data.extend_from_slice(&binary_size.to_be_bytes()); 
     let _res = device.write(chr_cust_mcu_fw_update, &start_fw_update_data, WriteType::WithResponse)
         .await.with_context(||"couldn't begin firmware update")?;
@@ -248,7 +248,7 @@ pub async fn firmware_update_visitor(firmware_file: &mut File, device: &Peripher
             )
         );           
     };
-    if notif.value.len() != 2 || notif.value[0] != abw_srv::WR_START_DFU || notif.value[1] != 0 {
+    if notif.value.len() != 2 || notif.value[0] != abw::WR_START_DFU || notif.value[1] != 0 {
         return Err(
             anyhow!(
                 "Didn't receive proper value notification as response to Start Firmware Update over BLE.", 
@@ -274,7 +274,7 @@ pub async fn firmware_update_visitor(firmware_file: &mut File, device: &Peripher
                     crc_state.update(&chunk);
 
                     let mut data: Vec<u8> = Vec::with_capacity(20);
-                    data.push(abw_srv::WR_WRITE_BINARY_DATA);
+                    data.push(abw::WR_WRITE_BINARY_DATA);
                     data.extend_from_slice(&offset.to_be_bytes()[1..]); 
                     data.extend_from_slice(&chunk);
 
@@ -304,7 +304,7 @@ pub async fn firmware_update_visitor(firmware_file: &mut File, device: &Peripher
                     crc_state.update(&chunk[..n]);
 
                     let mut data: Vec<u8> = Vec::with_capacity(20);
-                    data.push(abw_srv::WR_WRITE_BINARY_DATA);
+                    data.push(abw::WR_WRITE_BINARY_DATA);
                     data.extend_from_slice(&(offset).to_be_bytes()[1..]); 
                     data.extend_from_slice(&chunk[..n]);
 
@@ -319,14 +319,14 @@ pub async fn firmware_update_visitor(firmware_file: &mut File, device: &Peripher
                         );           
                     };
                     if (notif.value.len() != 5) || 
-                        (notif.value[0] != abw_srv::WR_WRITE_BINARY_DATA) || 
-                        (notif.value[1]!=abw_srv::FW_UPDATE_COMPLETED_SUCCESSFULLY) 
+                        (notif.value[0] != abw::WR_WRITE_BINARY_DATA) || 
+                        (notif.value[1]!=abw::FW_UPDATE_COMPLETED_SUCCESSFULLY) 
                     {
                         if notif.value.len() >= 2 && notif.value[1] <= 0x0f {
                             return Err(
                                 anyhow!(
                                     "Error recevied as response to Write Binary Data chunk: {}",    
-                                    abw_srv::FW_ERRORS[notif.value[1] as usize]
+                                    abw::FW_ERRORS[notif.value[1] as usize]
                                 )
                             );           
                         } else {
@@ -381,14 +381,14 @@ pub async fn firmware_update_visitor(firmware_file: &mut File, device: &Peripher
             );           
         };
         if (notif.value.len() != 5) || 
-            (notif.value[0] != abw_srv::WR_WRITE_BINARY_DATA) || 
-            (notif.value[1]!=abw_srv::FW_UPDATE_COMPLETED_SUCCESSFULLY) 
+            (notif.value[0] != abw::WR_WRITE_BINARY_DATA) || 
+            (notif.value[1]!=abw::FW_UPDATE_COMPLETED_SUCCESSFULLY) 
         {
             if notif.value.len() >= 2 && notif.value[1] <= 0x0f {
                 return Err(
                     anyhow!(
                         "Error recevied as response to Write Binary Data chunk: {}",
-                        abw_srv::FW_ERRORS[notif.value[1] as usize]
+                        abw::FW_ERRORS[notif.value[1] as usize]
                     )
                 );           
             } else {
@@ -413,7 +413,7 @@ pub async fn firmware_update_visitor(firmware_file: &mut File, device: &Peripher
     let _res = device.write(
         chr_cust_mcu_fw_update, 
         &vec![
-            abw_srv::WR_BINARY_DATA_CRC, 
+            abw::WR_BINARY_DATA_CRC, 
             (crc >> 8) as u8, (crc & 0xff) as u8
         ], 
         WriteType::WithResponse
@@ -429,14 +429,14 @@ pub async fn firmware_update_visitor(firmware_file: &mut File, device: &Peripher
         );           
     };
     if (notif.value.len() != 2) || 
-        (notif.value[0] != abw_srv::WR_BINARY_DATA_CRC) || 
-        (notif.value[1] != abw_srv::FW_UPDATE_COMPLETED_SUCCESSFULLY) 
+        (notif.value[0] != abw::WR_BINARY_DATA_CRC) || 
+        (notif.value[1] != abw::FW_UPDATE_COMPLETED_SUCCESSFULLY) 
     {
         if notif.value.len() >= 2 && notif.value[1] <= 0x0f {
             return Err(
                 anyhow!(
                     "Error recevied as response to CRC: {}",    
-                    abw_srv::FW_ERRORS[notif.value[1] as usize]
+                    abw::FW_ERRORS[notif.value[1] as usize]
                 )
             );           
         } else {

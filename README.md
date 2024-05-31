@@ -48,7 +48,7 @@ Commands:
   remove-bond       Remove BLE bond.
   export-config     Export configuration.
   import-config     Import configuration.
-  firmware-upgrade  COMMING SOON - Upgrade MCU firmware.
+  firmware-upgrade  Upgrade MCU firmware.
   help              Print this message or the help of the given subcommand(s)
 
 Options:

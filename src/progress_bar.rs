@@ -3,6 +3,7 @@ pub struct ProgressBar {
     len: usize,
     pub bar: Vec<u8>
 }
+
 impl ProgressBar {
     const PREFIX_LEN: usize = 6;
     const POSTFIX_LEN: usize = 1;

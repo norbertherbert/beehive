@@ -3,8 +3,8 @@ use btleplug::platform::{Adapter, Peripheral};
 use btleplug::api::{Peripheral as _, WriteType};
 use log::*;
 
-use crate::abw_ble::{
-    abw_srv,
+use crate::abw_ble_utils::{
+    abw,
     find_dev::find_abw_device,
 };
 
@@ -22,13 +22,13 @@ pub async fn show (
         Err(e) => {
             error!("{}", e); debug!("{:?}", e);
             println!("Cannot find the selected Abeeway Device.");
-            println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
+            println!("{}", abw::FIX_FOR_NOT_ADVERTIZING);
             return Ok(())
         }
     };
     let Some(device) = device else {
         println!("Device {} was not found", device_name);
-        println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
+        println!("{}", abw::FIX_FOR_NOT_ADVERTIZING);
         return Ok(())
     };
 
@@ -47,7 +47,7 @@ pub async fn show (
             Ok(_) => {},
             Err(e) => {
                 error!("{}", e); debug!("{:?}", e);
-                println!("{}", abw_srv::FIX_FOR_CORRUPTED_PAIRING);
+                println!("{}", abw::FIX_FOR_CORRUPTED_PAIRING);
                 return Ok(())
             }
         };
@@ -68,23 +68,23 @@ pub async fn show (
     // Getting the CUSTOM COMMAND service characteristic
     let Some(chr_cust_cmd) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_CUSTOM_CMD} ) 
+        .find(|chr| { chr.uuid == abw::CHR_CUSTOM_CMD} ) 
     else {
         return Err(
             anyhow!(
                 "The CUSTOM_COMMAND characteristic ({}) cannot be found on the device...", 
-                abw_srv::CHR_CUSTOM_CMD.as_hyphenated()
+                abw::CHR_CUSTOM_CMD.as_hyphenated()
             )
         );
     };
 
     // Set BLE connection to 'Very Fast'!
-    let _res = device.write(chr_cust_cmd, &vec![abw_srv::WR_VERY_FAST_CONN], WriteType::WithResponse)
+    let _res = device.write(chr_cust_cmd, &vec![abw::WR_VERY_FAST_CONN], WriteType::WithResponse)
         .await.with_context(||"couldn't set BLE connection speed to Very Fast")?;
 
     let res = device.read(chr_cust_cmd)
         .await.with_context(||"couldn't read the result of setting BLE connection speed to Very Fast")?;
-    if res.is_empty() || (res[0] != abw_srv::WR_VERY_FAST_CONN) { // Failure value would be 0xaa
+    if res.is_empty() || (res[0] != abw::WR_VERY_FAST_CONN) { // Failure value would be 0xaa
         return Err(
             anyhow!(
                 "BLE Connection Speed was not set to Very Fast.", 
@@ -119,7 +119,7 @@ pub async fn show (
 
 
     // Set BLE connection back to 'Slow'!
-    device.write(chr_cust_cmd, &vec![abw_srv::WR_SLOW_CONN], WriteType::WithoutResponse).await
+    device.write(chr_cust_cmd, &vec![abw::WR_SLOW_CONN], WriteType::WithoutResponse).await
         .with_context(||"couldn't set the BLE connection speed back to Slow")?;
 
     info!("BLE connection is set back to 'Slow'!");
@@ -146,7 +146,7 @@ pub async fn show_visitor(device: &Peripheral) -> Result<()> {
     // Getting the MODEL_NUMBER service characteristic
     if let Some(c) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_MODEL_NUMBER} ) 
+        .find(|chr| { chr.uuid == abw::CHR_MODEL_NUMBER} ) 
     {
         let v = device.read(c).await
             .with_context(||"error while reading the MODEL_NUMBER of the device")?;
@@ -158,7 +158,7 @@ pub async fn show_visitor(device: &Peripheral) -> Result<()> {
     // Getting the SERIAL_NUMBER service characteristic
     if let Some(c) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_SERIAL_NUMBER} ) 
+        .find(|chr| { chr.uuid == abw::CHR_SERIAL_NUMBER} ) 
     {
         let v = device.read(c).await
             .with_context(||"error while reading the SERIAL_NUMBER of the device")?;
@@ -170,7 +170,7 @@ pub async fn show_visitor(device: &Peripheral) -> Result<()> {
     // Getting the FIRMWARE_REVISION service characteristic
     if let Some(c) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_FIRMWARE_REVISION} ) 
+        .find(|chr| { chr.uuid == abw::CHR_FIRMWARE_REVISION} ) 
     {
         let v = device.read(c).await
             .with_context(||"error while reading the FIRMWARE_REVISION of the device")?;
@@ -182,7 +182,7 @@ pub async fn show_visitor(device: &Peripheral) -> Result<()> {
     // Getting the SOFTWARE_REVISION service characteristic
     if let Some(c) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_SOFTWARE_REVISION} ) 
+        .find(|chr| { chr.uuid == abw::CHR_SOFTWARE_REVISION} ) 
     {
         let v = device.read(c).await
             .with_context(||"error while reading the SOFTWARE_REVISION of the device")?;
@@ -194,7 +194,7 @@ pub async fn show_visitor(device: &Peripheral) -> Result<()> {
     // Getting the MANUFACTURER_NAME service characteristic
     if let Some(c) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_MANUFACTURER_NAME} ) 
+        .find(|chr| { chr.uuid == abw::CHR_MANUFACTURER_NAME} ) 
     {
         let v = device.read(c).await
             .with_context(||"error while reading the MANUFACTURER_NAME of the device")?;
@@ -206,7 +206,7 @@ pub async fn show_visitor(device: &Peripheral) -> Result<()> {
     // Getting the TX_POWER_LEVEL service characteristic
     if let Some(c) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_TX_POWER_LEVEL} ) 
+        .find(|chr| { chr.uuid == abw::CHR_TX_POWER_LEVEL} ) 
     {
         let v = device.read(c).await
             .with_context(||"error while reading the TX_POWER_LEVEL of the device")?;
@@ -218,7 +218,7 @@ pub async fn show_visitor(device: &Peripheral) -> Result<()> {
     // Getting the BATTERY_LEVEL service characteristic
     if let Some(c) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_BATTERY_LEVEL} ) 
+        .find(|chr| { chr.uuid == abw::CHR_BATTERY_LEVEL} ) 
     {
         let v = device.read(c).await
             .with_context(||"error while reading the BATTERY_LEVEL of the device")?;
@@ -229,15 +229,15 @@ pub async fn show_visitor(device: &Peripheral) -> Result<()> {
     // Getting the BATTERY_POWER_STATE service characteristic
     if let Some(c) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_BATTERY_POWER_STATE} ) 
+        .find(|chr| { chr.uuid == abw::CHR_BATTERY_POWER_STATE} ) 
     {
         let v = device.read(c).await
             .with_context(||"error while reading the BATTERY_POWER_STATE of the device")?;
         
         let s = match v[0] {
-            abw_srv::CHARGER_PRESENT_AND_CHARGING => "Charger present and charging.",
-            abw_srv::CHARGER_PRESENT_BUT_NOT_CHARGING => "Charger present but not charging.",
-            abw_srv::CHARGER_NOT_PRESENT_AND_DISCHARGING => "Charger not present and discharging.",
+            abw::CHARGER_PRESENT_AND_CHARGING => "Charger present and charging.",
+            abw::CHARGER_PRESENT_BUT_NOT_CHARGING => "Charger present but not charging.",
+            abw::CHARGER_NOT_PRESENT_AND_DISCHARGING => "Charger not present and discharging.",
             _ => "Unknown"
         };
         println!("    Battery Power State: {}", s);
@@ -246,7 +246,7 @@ pub async fn show_visitor(device: &Peripheral) -> Result<()> {
     // Getting the TEMPERATURE_CELSIUS service characteristic
     if let Some(c) = characteristics
         .iter()
-        .find(|chr| { chr.uuid == abw_srv::CHR_TEMPERATURE_CELSIUS} ) 
+        .find(|chr| { chr.uuid == abw::CHR_TEMPERATURE_CELSIUS} ) 
     {
         let v = device.read(c).await
             .with_context(||"error while reading the TEMPERATURE_CELSIUS value of the device")?;

@@ -6,8 +6,8 @@ use clap::{arg, command, Command};
 
 #[macro_use] extern crate log;
 
-use beehive::abw_ble::{
-    abw_srv,
+use beehive::abw_ble_utils::{
+    abw,
     find_dev::find_abw_device_names,
 };
 use beehive::subcommands;
@@ -162,14 +162,14 @@ async fn main() -> Result<()> {
             Err(e) => {
                 error!("{}", e); debug!("{:?}", e);
                 println!("No Abeeway devices were found.");
-                println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
+                println!("{}", abw::FIX_FOR_NOT_ADVERTIZING);
                 return Ok(())
             }
         };
         match found_abw_device_names.len() {
             0 => {
                 println!("No Abeeway devices were found.");
-                println!("{}", abw_srv::FIX_FOR_NOT_ADVERTIZING);
+                println!("{}", abw::FIX_FOR_NOT_ADVERTIZING);
             },
             1 => {
                 println!("One Abeeway device was found:\n    {} - {}", 

@@ -5,7 +5,7 @@ use tokio::time;
 use btleplug::platform::{Adapter, Peripheral};
 use btleplug::api::{Central, Peripheral as _, ScanFilter};
 
-use super::abw_srv;
+use super::abw;
 use crate::progress_bar::create_progress_bar;
 
 
@@ -41,7 +41,7 @@ pub async fn find_abw_device_names(adapter: &Adapter) -> Result<Vec<(String, boo
                 .unwrap()
                 .local_name
                 .unwrap_or(String::from("(peripheral name unknown)"));
-            if local_name.starts_with(abw_srv::PERIPHERAL_NAME_MATCH_FILTER) {
+            if local_name.starts_with(abw::PERIPHERAL_NAME_MATCH_FILTER) {
                 let is_connected = peripheral.is_connected().await?;
                 found_abw_devices.push((local_name, is_connected));
             }
