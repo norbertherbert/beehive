@@ -220,7 +220,7 @@ pub async fn import_config_visitor(config_file: &mut File, device: &Peripheral) 
 
         if let (Some(param_name), Some(param_value)) = (words.next(), words.next()) {
 
-            // If ithis is Some, then there were two '=' characters in the line
+            // If this is Some, then there were two '=' characters in the line
             if words.next().is_some() {
                 warn!("Invalid line was ignored while parsing the config file: '{}'", line);
                 continue;

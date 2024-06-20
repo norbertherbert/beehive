@@ -260,19 +260,20 @@ pub async fn cli_visitor(device: &Peripheral) -> Result<()> {
     // info!("BLE connection is set to 'Very Fast'!");
 
 
+    // Enable BLE CLI in config_flags
     // Send the read config_flags command
     device.write(chr_configuration, &vec![abw::WR_READ_CONF, abw_params::CONFIG_FLAGS], WriteType::WithoutResponse).await
-        .with_context(||"couldn't send the 'read config_flags' BLE commaand")?;
+        .with_context(||"couldn't send the 'read config_flags' BLE command")?;
     // Receive the actual config_flags value
     let res_value = rx_configuration.recv()
         .with_context(||"Cannot read the response to read config_flags command from the notification channel.")?;
     // Check if BLE CLI is enabled in config_flags. Check if bit 4 (20) is turned on.
-    if res_value[3] & 1<<4 == 0 {
+    if (res_value[3] & 1<<4) == 0 {
         // Enable BLE CLI in config_flags. Write new config_flags (set bit 20 to 1).
         device.write(chr_configuration, &vec![
             abw::WR_WRITE_CONF, abw_params::CONFIG_FLAGS, res_value[2], res_value[3] | 1<<4, res_value[4], res_value[5]
         ], WriteType::WithoutResponse).await
-            .with_context(||"couldn't send the 'write config_flags' BLE commaand")?;
+            .with_context(||"couldn't send the 'write config_flags' BLE command")?;
         info!("BLE CLI (bit 20) has been enabled in config_flags.");
     } else {
         info!("BLE CLI (bit 20) is already enabled in config_flags.");
@@ -280,7 +281,7 @@ pub async fn cli_visitor(device: &Peripheral) -> Result<()> {
 
     // Turn on BLE CLI
     device.write(chr_configuration, &vec![abw::WR_WRITE_CONF, abw_params::BLE_CLI_ACTIVE, 0, 0, 0, 1], WriteType::WithoutResponse).await
-        .with_context(||"couldn't send the 'Turn on BLE CLI' commaand")?;
+        .with_context(||"couldn't send the 'Turn on BLE CLI' command")?;
 
 
     println!("Press Ctrl+C to leave the CLI interface!");
@@ -349,6 +350,48 @@ pub async fn cli_visitor(device: &Peripheral) -> Result<()> {
     device.unsubscribe(&chr_custom_rcv_serial_data).await
         .with_context(||"couldn't unsubscribe from CLI command responses")?;
 
+
+
+
+
+
+
+
+
+
+
+
+    // Disable BLE CLI in config_flags
+    // Send the read config_flags command
+    device.write(chr_configuration, &vec![abw::WR_READ_CONF, abw_params::CONFIG_FLAGS], WriteType::WithoutResponse).await
+        .with_context(||"couldn't send the 'read config_flags' BLE command")?;
+    // Receive the actual config_flags value
+    let res_value = rx_configuration.recv()
+        .with_context(||"Cannot read the response to read config_flags command from the notification channel.")?;
+    // Check if BLE CLI is enabled in config_flags. Check if bit 4 (20) is turned on.
+    if !((res_value[3] & 1<<4) == 0) {
+        // Disable BLE CLI in config_flags. Write new config_flags (set bit 20 to 0).
+        device.write(chr_configuration, &vec![
+            abw::WR_WRITE_CONF, abw_params::CONFIG_FLAGS, res_value[2], res_value[3] & (!(1<<4)), res_value[4], res_value[5]
+        ], WriteType::WithoutResponse).await
+            .with_context(||"couldn't send the 'write config_flags' BLE command")?;
+        info!("BLE CLI (bit 20) has been disabled in config_flags.");
+    } else {
+        info!("BLE CLI (bit 20) is already disabled in config_flags.");
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+        
     // Turn off BLE CLI
     device.write(chr_configuration, &vec![abw::WR_WRITE_CONF, abw_params::BLE_CLI_ACTIVE, 0, 0, 0, 0], WriteType::WithoutResponse).await
         .with_context(||"couldn't send the 'turn off BLE CLI' command")?;
