@@ -1,5 +1,5 @@
 import * as abw from './abw.js';
-import {log, streamLog, setBLESpeed, createStreamFromEvents} from './main.js';
+import {log, streamLog, setBLESpeed, createStreamFromEvents} from './connection-mgmt.js';
 import { onUsbCliCmdKeypressEvent, onUsbStopCliButtonClick } from './usb-cli.js';
 
 
@@ -190,16 +190,27 @@ export async function onStopCliButtonClick() {
         await chr_custom_rcv_serial_data.stopNotifications();
         log(`> Serial Data notifications have been stopped`);
 
-        // Turn off BLE CLI
 
-        await chr_configuration.writeValueWithoutResponse(Uint8Array.of(
-            abw.WR_WRITE_CONF, 
-            abw.BLE_CLI_ACTIVE,
-            0, 0, 0, 0,
-        ));
+        if (gblIsAT2) {
 
-        log("> BLE CLI has been turned off.");
+            // Turn off BLE CLI
+            await chr_configuration.writeValueWithoutResponse(Uint8Array.of(
+                abw.WR_WRITE_CONF, 
+                abw.BLE_CLI_ACTIVE,
+                0, 0, 0, 0,
+            ));
 
+            log("> BLE CLI has been turned off.");
+
+        } else {
+
+            const chr_custom_cmd = abw.services.abeeway_primary.chars.custom_cmd.obj;
+            await chr_custom_cmd.writeValue(Uint8Array.of(abw.WR_DISABLE_BLE_CLI));
+            log("> BLE CLI has been turned off.");
+
+        }
+
+        
         await chr_configuration.stopNotifications()
         log(`> Configuration notifications have been stopped`);
 

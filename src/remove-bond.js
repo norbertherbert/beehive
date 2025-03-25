@@ -1,5 +1,5 @@
 import * as abw from './abw.js';
-import { log } from './main.js';
+import { log } from './connection-mgmt.js';
 
 
 export async function onRemoveBondButtonClick() {

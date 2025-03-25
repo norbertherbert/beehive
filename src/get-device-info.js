@@ -1,5 +1,5 @@
 import * as abw from './abw.js';
-import { log, setBLESpeed } from './main.js';
+import { log, setBLESpeed } from './connection-mgmt.js';
 
 
 export async function onGetBluetoothDeviceInfoButtonClick() {

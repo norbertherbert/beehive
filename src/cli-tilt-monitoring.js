@@ -1,5 +1,5 @@
 import * as abw from './abw.js';
-import {log, setBLESpeed, createStreamFromEvents} from './main.js';
+import {log, setBLESpeed, createStreamFromEvents} from './connection-mgmt.js';
 
 
 // import * as THREE from "three";

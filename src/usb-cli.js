@@ -1,5 +1,5 @@
 import { DEV_EUI_PREFIX_AT2 } from './abw.js';
-import { log, streamLog, sleep } from './main.js';
+import { log, streamLog, sleep } from './connection-mgmt.js';
 import { addToCmdHistory, onBleCliCmdKeypressEvent, onStopCliButtonClick } from './cli.js';
 
 
