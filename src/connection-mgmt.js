@@ -1,4 +1,5 @@
 import * as abw from './abw.js';
+import { onStopCliButtonClick } from './cli.js';
 
 
 export function log(line) {
@@ -89,7 +90,11 @@ export async function onForgetBluetoothDeviceButtonClick() {
 
         loader_div.style.display = 'block';
         log(`Forgetting ${gblDevice.name} Bluetooth device...`);
+
+        await onDisconnectBluetoothDeviceButtonClick()
+        
         await gblDevice.forget();
+
         gblDevice = null;
         gblIsAT2 = false;
         gblDevEUIHex = '';
@@ -268,6 +273,12 @@ function onDisconnected(event) {
 export async function onDisconnectBluetoothDeviceButtonClick() {
 
     try {
+
+
+
+        await onStopCliButtonClick();
+
+
 
         loader_div.style.display = 'block';
 

@@ -193,7 +193,6 @@ export async function onStopCliButtonClick() {
 
         if (gblIsAT2) {
 
-            // Turn off BLE CLI
             await chr_configuration.writeValueWithoutResponse(Uint8Array.of(
                 abw.WR_WRITE_CONF, 
                 abw.BLE_CLI_ACTIVE,

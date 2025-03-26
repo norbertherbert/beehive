@@ -1,5 +1,16 @@
 # beehive
 
-Build with the following command:
+Abeeway Bluetooth and Serial debug tool.
 
-`npm run build`
+## Build
+
+```bash
+git clone https://github.com/norbertherbert/beehive.git
+cd beehive
+npm install
+npm run build
+```
+
+## Try and test locally
+
+`npm run serve`
