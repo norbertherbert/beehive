@@ -79,7 +79,7 @@ export async function onStartCliButtonClick() {
         loader_div.style.display = 'block';
         log(`Starting the CLI...`);
 
-        await setBLESpeed(abw.WR_VERY_FAST_CONN);
+        await setBLESpeed(abw.WR_FAST_CONN);
 
         const chr_configuration = abw.services.abeeway_primary.chars.configuration.obj;
         const chr_custom_send_cli_cmd = abw.services.abeeway_primary.chars.custom_send_cli_cmd.obj;
@@ -224,6 +224,8 @@ export async function onStopCliButtonClick() {
 
         log(`> CLI has been closed`);
         loader_div.style.display = 'none';
+
+        await setBLESpeed(abw.WR_VERY_FAST_CONN);
 
     } catch(error) {
         log('Argh! ' + error);

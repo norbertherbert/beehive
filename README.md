@@ -13,4 +13,4 @@ npm run build
 
 ## Try and test locally
 
-`npm run serve`
+`npm run dev`
