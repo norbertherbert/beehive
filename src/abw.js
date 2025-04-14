@@ -8,7 +8,7 @@ export async function findServices(server) {
     chr.obj = await srv.obj.getCharacteristic(chr.uuid);
     chr = srv.chars.configuration;
     chr.obj = await srv.obj.getCharacteristic(chr.uuid);
-    chr = srv.chars.custom_cmd;
+    chr = srv.chars.custom_simple_cmd;
     chr.obj = await srv.obj.getCharacteristic(chr.uuid);
     chr = srv.chars.custom_mcu_fw_update;
     chr.obj = await srv.obj.getCharacteristic(chr.uuid);
@@ -71,7 +71,7 @@ export let services = {
                 uuid: '00002740-1212-efde-1523-785feabcd123',
                 obj: null
             },
-            custom_cmd: {
+            custom_simple_cmd: {
                 name: 'Custom: Command',
                 uuid: '0000273d-1212-efde-1523-785feabcd123',
                 obj: null
@@ -212,7 +212,7 @@ export const NOTIF_CONF_DATA_LENGTH_ERROR = 0x03;
 
 // ABEEWAY PRIMARY SERVICE - CUSTOM - COMMAND CHARACTERISTICS
 
-export const CHR_CUSTOM_CMD = '0000273d-1212-efde-1523-785feabcd123';
+export const CHR_CUSTOM_SIMPLE_CMD = '0000273d-1212-efde-1523-785feabcd123';
 
 // Protocol Payloads: 
 export const WR_CLEAR_BOND         = 0x99;

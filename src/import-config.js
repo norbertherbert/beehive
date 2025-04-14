@@ -209,8 +209,8 @@ export async function onImportConfigButtonClick() {
         }
 
         if (!gblIsAT2) {
-            const chr_custom_cmd = abw.services.abeeway_primary.chars.custom_cmd.obj;
-            await chr_custom_cmd.writeValue(Uint8Array.of(abw.WR_SAVE_CONFIG));
+            const chr_custom_simple_cmd = abw.services.abeeway_primary.chars.custom_simple_cmd.obj;
+            await chr_custom_simple_cmd.writeValueWithoutResponse(Uint8Array.of(abw.WR_SAVE_CONFIG));
             log("> AT3 parameter settings have been saved.");
         }
 

@@ -410,8 +410,8 @@ export async function setBLESpeed(speed) {
 
     log(`Setting BLE Speed to ${speedText} for device ${gblDevEUIHex}...`);
 
-    const chr_custom_cmd = abw.services.abeeway_primary.chars.custom_cmd.obj;
-    await chr_custom_cmd.writeValueWithoutResponse(Uint8Array.of(speed));
+    const chr_custom_simple_cmd = abw.services.abeeway_primary.chars.custom_simple_cmd.obj;
+    await chr_custom_simple_cmd.writeValueWithoutResponse(Uint8Array.of(speed));
     log(`> The BLE Speed has been set to ${speedText} for device ${gblDevEUIHex}`);
 
 }
