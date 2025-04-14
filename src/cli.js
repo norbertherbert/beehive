@@ -79,7 +79,7 @@ export async function onStartCliButtonClick() {
         loader_div.style.display = 'block';
         log(`Starting the CLI...`);
 
-        await setBLESpeed(abw.WR_FAST_CONN);
+        await setBLESpeed(abw.WR_VERY_FAST_CONN);
 
         const chr_configuration = abw.services.abeeway_primary.chars.configuration.obj;
         const chr_custom_send_cli_cmd = abw.services.abeeway_primary.chars.custom_send_cli_cmd.obj;

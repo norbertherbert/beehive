@@ -85,8 +85,6 @@ export async function onImportConfigButtonClick() {
                 view.setUint8(1, paramID);
                 view.setInt32(2, paramValue);
 
-                // TODO: Do we have to save the config?
-
             } else {
                 
                 switch (foundParam[2]) {
@@ -96,7 +94,7 @@ export async function onImportConfigButtonClick() {
                             log(`ERROR IN CONFIGURATION FILE: ${line}\n> Line ignored`);
                             continue;
                         }
-                        buffer = new ArrayBuffer(7);
+                        buffer = new ArrayBuffer(8);
                         view = new DataView(buffer);
                         view.setUint8(0, abw.WR_WRITE_CONF);
                         view.setUint16(1, paramID);
@@ -134,7 +132,7 @@ export async function onImportConfigButtonClick() {
                         paramValue = encoder.encode(paramValueString);
                         // console.log(paramValue.length);
 
-                        buffer = new ArrayBuffer(3 + paramValue.byteLength + 1);
+                        buffer = new ArrayBuffer(4 + paramValue.byteLength + 1);
                         view = new DataView(buffer);
 
                         view.setUint8(0, abw.WR_WRITE_CONF);
@@ -163,7 +161,7 @@ export async function onImportConfigButtonClick() {
                         paramValueString = paramValueString.slice(1, -1).trim();
                         const paramValueArray = paramValueString.split(',');
 
-                        buffer = new ArrayBuffer(3 + paramValueArray.length);
+                        buffer = new ArrayBuffer(4 + paramValueArray.length);
                         view = new DataView(buffer);
                         view.setUint8(0, abw.WR_WRITE_CONF);
                         view.setUint16(1, paramID);
@@ -181,15 +179,7 @@ export async function onImportConfigButtonClick() {
 
                     default:
                         continue;
-                }
-
-                // TODO: new simple command 0x05 to send via char 0x273D to save the config
-                // CHR_CUSTOM_CMD, WR_SAVE_CONFIG
-
-                const chr_custom_cmd = abw.services.abeeway_primary.chars.custom_cmd.obj;
-                await chr_custom_cmd.writeValue(Uint8Array.of(abw.WR_SAVE_CONFIG));
-                log("> Parameter settings have been saved.");
-                
+                }             
 
             }
 
@@ -216,6 +206,12 @@ export async function onImportConfigButtonClick() {
             
             log(responseMsg);
 
+        }
+
+        if (!gblIsAT2) {
+            const chr_custom_cmd = abw.services.abeeway_primary.chars.custom_cmd.obj;
+            await chr_custom_cmd.writeValue(Uint8Array.of(abw.WR_SAVE_CONFIG));
+            log("> AT3 parameter settings have been saved.");
         }
 
         log(`> Configuration notifications have been stopped`);
