@@ -85,6 +85,8 @@ export async function onImportConfigButtonClick() {
                 view.setUint8(1, paramID);
                 view.setInt32(2, paramValue);
 
+                // TODO: Do we have to save the config?
+
             } else {
                 
                 switch (foundParam[2]) {
@@ -98,8 +100,25 @@ export async function onImportConfigButtonClick() {
                         view = new DataView(buffer);
                         view.setUint8(0, abw.WR_WRITE_CONF);
                         view.setUint16(1, paramID);
-                        view.setInt32(3, paramValue);
+                        view.setUint8(3, abw.PARAM_TYPE_INTEGER);
+                        view.setInt32(4, paramValue);
                         break;
+
+                    // TODO:
+                    // case 'f32':
+                    //     paramValue = parseFloat(paramValueString);
+                    //     if (isNaN(paramValue)) {
+                    //         log(`ERROR IN CONFIGURATION FILE: ${line}\n> Line ignored`);
+                    //         continue;
+                    //     }
+                    //     buffer = new ArrayBuffer(7);
+                    //     view = new DataView(buffer);
+                    //     view.setUint8(0, abw.WR_WRITE_CONF);
+                    //     view.setUint16(1, paramID);
+                    //     view.setUint8(3, abw.TYPE_INTEGER);
+                    //     view.setInt32(4, paramValue);
+                    //     break;
+
                     case 'string':
 
                         if ((paramValueString.slice(0,1) != '"') && (paramValueString.slice(-1) != '"')) {
@@ -120,7 +139,8 @@ export async function onImportConfigButtonClick() {
 
                         view.setUint8(0, abw.WR_WRITE_CONF);
                         view.setUint16(1, paramID);
-                        view.setUint8(3 + paramValue.byteLength, 0); // null terminated string
+                        view.setUint8(3, abw.PARAM_TYPE_STRING);
+                        view.setUint8(4 + paramValue.byteLength, 0); // null terminated string
 
                         view = new Uint8Array(buffer)
                         view.set(paramValue, 3);
@@ -147,13 +167,14 @@ export async function onImportConfigButtonClick() {
                         view = new DataView(buffer);
                         view.setUint8(0, abw.WR_WRITE_CONF);
                         view.setUint16(1, paramID);
+                        view.setUint8(3, abw.PARAM_TYPE_BYTEARRAY);
                         for (let i=0; i < paramValueArray.length; i++) {
                             const v = parseInt(paramValueArray[i], 16);
                             if ( isNaN(v) || (v > 255) || (v < 0) ) {
                                 log(`ERROR IN CONFIGURATION FILE: ${line}\n> Line ignored`);
                                 continue;
                             }
-                            view.setUint8(i+3, v);
+                            view.setUint8(4+i, v);
                         }
 
                         break;
@@ -161,6 +182,14 @@ export async function onImportConfigButtonClick() {
                     default:
                         continue;
                 }
+
+                // TODO: new simple command 0x05 to send via char 0x273D to save the config
+                // CHR_CUSTOM_CMD, WR_SAVE_CONFIG
+
+                const chr_custom_cmd = abw.services.abeeway_primary.chars.custom_cmd.obj;
+                await chr_custom_cmd.writeValue(Uint8Array.of(abw.WR_SAVE_CONFIG));
+                log("> Parameter settings have been saved.");
+                
 
             }
 

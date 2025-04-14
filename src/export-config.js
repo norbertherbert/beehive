@@ -47,9 +47,11 @@ export async function onExportConfigButtonClick() {
             const decoder = new TextDecoder('ascii');
 
             for (const param of abw.PARAMS_AT3) {
-
-                // params in the 'sys' group should not be exported
-                if ( param[1] < 0x10 ) {
+                
+                if ( 
+                    (param[1] < 0x10) || // params in the 'sys' group should not be exported
+                    (param[1] == 0x010e) // 'core_cli_password' should not be exported
+                ) {
                     continue;
                 }
 
@@ -75,19 +77,19 @@ export async function onExportConfigButtonClick() {
                 switch (param[2]) {
 
                     case 'i32':
-                        paramValue = value.getInt32(3);
+                        paramValue = value.getInt32(4);
                         line = `${param[0]} = ${paramValue}`;
                         break;
                     case 'string':
-                        paramValue = decoder.decode(new DataView(value.buffer, 3, value.byteLength-4));
+                        paramValue = decoder.decode(new DataView(value.buffer, 4, value.byteLength-5));
                         line = `${param[0]} = "${paramValue}"`;
                         break;
                     case 'array':
                         // console.log(param[0]);
                         // console.log(value);
 
-                        paramValue = '"{' + value.getUint8(3).toString(16).padStart(2,0);
-                        let i = 4;
+                        paramValue = '"{' + value.getUint8(4).toString(16).padStart(2,0);
+                        let i = 5;
                         while (i < value.byteLength) {
                             paramValue += ','
                             paramValue += value.getUint8(i).toString(16).padStart(2,0);

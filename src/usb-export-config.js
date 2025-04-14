@@ -66,9 +66,12 @@ export async function onUsbExportConfigButtonClick() {
                 if (foundParam) {
 
                     let paramValueString;
-
-                    // params in the 'sys' group should not be exported
-                    if (lineSegments[0].startsWith('0x00')) {
+                    
+                    if (
+                        lineSegments[0].startsWith('0x00') ||    // params in the 'sys' group should not be exported
+                        lineSegments[0] == "0x010e" ||           // 'core_cli_password' should not be exported
+                        lineSegments[0] == "0x010E"              // 'core_cli_password' should not be exported
+                    ) {
                         continue;
                     }
 

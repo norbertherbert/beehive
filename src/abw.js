@@ -225,6 +225,7 @@ export const WR_VERY_FAST_CONN     = 0x02;
 
 export const WR_ENABLE_BLE_CLI     = 0x03;
 export const WR_DISABLE_BLE_CLI    = 0x04;
+export const WR_SAVE_CONFIG        = 0x05;
 
 
 export const RR_CUST_CMD_READ_ANS  = 0x00; // RR_READ_ANS
@@ -415,6 +416,14 @@ export const BLE_CLI_ACTIVE = 245;
 
 export const BLE_CNX_ADV_DURATION_AT3 = 0x0b01; 
 
+export const PARAM_TYPE_DEPRECATED = 1;
+export const PARAM_TYPE_INTEGER = 1;
+export const PARAM_TYPE_FLOAT = 2;
+export const PARAM_TYPE_STRING = 3; 
+export const PARAM_TYPE_BYTEARRAY = 4;
+
+export const FW_TYPE_MCU = 0;
+export const FW_TYPE_BLE_STACK = 1;
 
 export const PARAMS = [
     ["ul_period", 0],
@@ -558,7 +567,7 @@ export const PARAMS_AT3 = [
     ["sys_highest_temperature", 0x0000,"i32"], 
     ["sys_lowest_temperature", 0x0001,"i32"], 
     ["sys_power_consumption", 0x0002,"i32"], 
-    ["sys_cli_password", 0x0003,"i32"], 
+    // ["sys_cli_password", 0x0003,"i32"], 
 
     ["core_monitoring_period", 0x0100,"i32"], 
     ["core_status_period", 0x0101,"i32"], 
@@ -574,7 +583,7 @@ export const PARAMS_AT3 = [
     ["core_buzzer_map", 0x010b,"array"], 
     ["core_almanac_validity", 0x010c,"i32"], 
     ["core_almanac_outdated_ratio", 0x010d,"i32"], 
-    // ["core_cli_password", 0x010e,"i32"], 
+    ["core_cli_password", 0x010e,"i32"], 
 
     ["geoloc_motion_period", 0x0200,"i32"], 
     ["geoloc_static_period", 0x0201,"i32"], 
@@ -669,7 +678,8 @@ export const PARAMS_AT3 = [
     ["cell_search_bands", 0x0a02,"array"], 
     ["cell_cnx_timeout_static", 0x0a03,"i32"], 
     ["cell_cnx_timeout_motion", 0x0a04,"i32"], 
-    ["cell_nw_lost_timeout", 0x0a05,"i32"], 
+
+    ["cell_cnx_nw_reconnect_timeout", 0x0a05,"i32"], 
     ["cell_cnx_max_attempts", 0x0a06,"i32"], 
     ["cell_access_point_name", 0x0a07,"string"], 
     ["cell_operator_sim_slot_0", 0x0a08,"string"],

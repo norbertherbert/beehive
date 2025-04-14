@@ -6,7 +6,15 @@ export async function onFirmwareUpdateButtonClick() {
 
     try {
 
-        if (!gblIsAT2) { log('ALERT: This function is not supported on AT3 yet!'); return; }
+
+
+
+
+        // if (!gblIsAT2) { log('ALERT: This function is not supported on AT3 yet!'); return; }
+
+
+
+
 
         loader_div.style.display = 'block';
         document.querySelectorAll('button').forEach(elem => {
@@ -63,20 +71,52 @@ export async function onFirmwareUpdateButtonClick() {
         log(`> Firmware Update over BLE is enabled...`);
 
 
+
+
+
+
+
+
+
         // Begin firmware update
 
-        arrayBuffer = new ArrayBuffer(5);
-        dataView = new DataView(arrayBuffer);
-        dataView.setUint8(0, abw.WR_START_DFU);
-        dataView.setUint32(1, file.size);
+        if (gblIsAT2) { 
 
-        await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);
-        notif = await eventReader.read();
-        if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_START_DFU || notif.value.getUint8(1) != 0) {
-            throw Error(`Didn't receive proper value notification as response to Start Firmware Update over BLE: ${notif.value.getUint8(1)}`);
+            arrayBuffer = new ArrayBuffer(5);
+            dataView = new DataView(arrayBuffer);
+            dataView.setUint8(0, abw.WR_START_DFU);
+            dataView.setUint32(1, file.size);
+    
+            await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);
+            notif = await eventReader.read();
+            if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_START_DFU || notif.value.getUint8(1) != 0) {
+                throw Error(`Didn't receive proper value notification as response to Start Firmware Update over BLE: ${notif.value.getUint8(1)}`);
+            }
+   
+        } else {
+
+            arrayBuffer = new ArrayBuffer(6);
+            dataView = new DataView(arrayBuffer);
+            dataView.setUint8(0, abw.WR_START_DFU);
+            dataView.setUint32(1, file.size);
+            dataView.setUint8(5, abw.FW_TYPE_MCU);
+    
+            await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);
+            notif = await eventReader.read();
+            if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_START_DFU || notif.value.getUint8(1) != 0) {
+                throw Error(`Didn't receive proper value notification as response to Start Firmware Update over BLE: ${notif.value.getUint8(1)}`);
+            }
+
         }
 
         log(`> Firmware Update start message has been sent to the device...`);
+
+
+
+
+
+
+
 
 
         const chunkSize = 16;
