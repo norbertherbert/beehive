@@ -190,6 +190,8 @@ function onSysAccShowCommandResponse(event) {
     let resTextChunk = new TextDecoder("ascii").decode(event.target.value);
     cmdResBuffer.push(resTextChunk);
 
+    log(resTextChunk);
+
     if ( !resTextChunk.includes('OK') ) { return }
 
     const resText = cmdResBuffer.join('');
@@ -383,7 +385,7 @@ export async function onTiltMonitoringButtonClick() {
 
         } else {
 
-            const chr_custom_simple_cmd = abw.services.abeeway_primary.chars.custom_cmd.obj;
+            const chr_custom_simple_cmd = abw.services.abeeway_primary.chars.custom_simple_cmd.obj;
             await chr_custom_simple_cmd.writeValueWithoutResponse(Uint8Array.of(abw.WR_ENABLE_BLE_CLI));
             log("> BLE CLI has been turned on.");
 
