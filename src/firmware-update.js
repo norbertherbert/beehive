@@ -1,5 +1,5 @@
 import * as abw from './abw.js';
-import {log, setBLESpeed, createStreamFromEvents} from './connection-mgmt.js';
+import {log, sleep, setBLESpeed, createStreamFromEvents} from './connection-mgmt.js';
 
 
 export async function onFirmwareUpdateButtonClick() {
@@ -65,11 +65,12 @@ export async function onFirmwareUpdateButtonClick() {
         dataView = new DataView(arrayBuffer);
         dataView.setUint8(0, abw.WR_ENABLE_DFU);
         dataView.setBigUint64(1, devEUI);
-        await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);
+        await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);        
         notif = await eventReader.read();
         if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_ENABLE_DFU || notif.value.getUint8(1) != 0) {
             throw Error(`Didn't receive proper value notification as response to Enable Firmware Update over BLE: ${notif.value.getUint8(1)}`);
         }
+        await sleep(500);
 
         log(`> Firmware Update over BLE is enabled...`);
 
@@ -93,6 +94,7 @@ export async function onFirmwareUpdateButtonClick() {
         if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_START_DFU || notif.value.getUint8(1) != 0) {
             throw Error(`Didn't receive proper value notification as response to Start Firmware Update over BLE: ${notif.value.getUint8(1)}`);
         }
+        await sleep(500);
 
         log(`> Firmware Update start message has been sent to the device...`);
 

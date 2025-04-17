@@ -1,5 +1,5 @@
 import * as abw from './abw.js';
-import {log, setBLESpeed, createStreamFromEvents} from './connection-mgmt.js';
+import {log, streamLog, setBLESpeed, createStreamFromEvents} from './connection-mgmt.js';
 
 
 // import * as THREE from "three";
@@ -190,7 +190,7 @@ function onSysAccShowCommandResponse(event) {
     let resTextChunk = new TextDecoder("ascii").decode(event.target.value);
     cmdResBuffer.push(resTextChunk);
 
-    log(resTextChunk);
+    streamLog(resTextChunk);
 
     if ( !resTextChunk.includes('OK') ) { return }
 
