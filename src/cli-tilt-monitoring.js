@@ -386,8 +386,13 @@ export async function onTiltMonitoringButtonClick() {
         } else {
 
             const chr_custom_simple_cmd = abw.services.abeeway_primary.chars.custom_simple_cmd.obj;
-            await chr_custom_simple_cmd.writeValueWithoutResponse(Uint8Array.of(abw.WR_ENABLE_BLE_CLI));
-            log("> BLE CLI has been turned on.");
+            await chr_custom_simple_cmd.writeValue(Uint8Array.of(abw.WR_ENABLE_BLE_CLI));
+            const res = await chr_custom_simple_cmd.readValue();
+            if (res.getUint8(0)== abw.WR_ENABLE_BLE_CLI) {
+                log(`> BLE CLI has been enabled for device ${gblDevEUIHex}`);
+            } else {
+                log(`> Failed to enable BLE CLI for device ${gblDevEUIHex}`);
+            }
 
         }
 

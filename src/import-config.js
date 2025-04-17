@@ -210,8 +210,13 @@ export async function onImportConfigButtonClick() {
 
         if (!gblIsAT2) {
             const chr_custom_simple_cmd = abw.services.abeeway_primary.chars.custom_simple_cmd.obj;
-            await chr_custom_simple_cmd.writeValueWithoutResponse(Uint8Array.of(abw.WR_SAVE_CONFIG));
-            log("> AT3 parameter settings have been saved.");
+            await chr_custom_simple_cmd.writeValue(Uint8Array.of(abw.WR_SAVE_CONFIG));
+            const res = await chr_custom_simple_cmd.readValue();
+            if (res.getUint8(0)== abw.WR_SAVE_CONFIG) {
+                log("> AT3 parameter settings have been saved.");
+            } else {
+                log("> Failed to save AT3 parameter settings.");
+            }
         }
 
         log(`> Configuration notifications have been stopped`);

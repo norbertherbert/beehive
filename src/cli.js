@@ -131,8 +131,13 @@ export async function onStartCliButtonClick() {
         } else {
 
             const chr_custom_simple_cmd = abw.services.abeeway_primary.chars.custom_simple_cmd.obj;
-            await chr_custom_simple_cmd.writeValueWithoutResponse(Uint8Array.of(abw.WR_ENABLE_BLE_CLI));
-            log("> BLE CLI has been turned on.");
+            await chr_custom_simple_cmd.writeValue(Uint8Array.of(abw.WR_ENABLE_BLE_CLI));
+            const res = await chr_custom_simple_cmd.readValue();
+            if (res.getUint8(0)== abw.WR_ENABLE_BLE_CLI) {
+                log(`> BLE CLI has been enabled for device ${gblDevEUIHex}`);
+            } else {
+                log(`> Failed to enable BLE CLI for device ${gblDevEUIHex}`);
+            }
 
         }
         
@@ -204,8 +209,13 @@ export async function onStopCliButtonClick() {
         } else {
 
             const chr_custom_simple_cmd = abw.services.abeeway_primary.chars.custom_simple_cmd.obj;
-            await chr_custom_simple_cmd.writeValueWithoutResponse(Uint8Array.of(abw.WR_DISABLE_BLE_CLI));
-            log("> BLE CLI has been turned off.");
+            await chr_custom_simple_cmd.writeValue(Uint8Array.of(abw.WR_DISABLE_BLE_CLI));
+            const res = await chr_custom_simple_cmd.readValue();
+            if (res.getUint8(0)== abw.WR_DISABLE_BLE_CLI) {
+                log(`> BLE CLI has been disabled for device ${gblDevEUIHex}`);
+            } else {
+                log(`> Failed to disable BLE CLI for device ${gblDevEUIHex}`);
+            }
 
         }
 
@@ -224,8 +234,6 @@ export async function onStopCliButtonClick() {
 
         log(`> CLI has been closed`);
         loader_div.style.display = 'none';
-
-        await setBLESpeed(abw.WR_VERY_FAST_CONN);
 
     } catch(error) {
         log('Argh! ' + error);

@@ -45,6 +45,7 @@ export async function onFirmwareUpdateButtonClick() {
         const eventReader = eventStream.getReader();
         
         chr_custom_mcu_fw_update.startNotifications();
+        await sleep(500);
         log(`> Firmware Update notifications have been started...`);
 
 
@@ -65,7 +66,7 @@ export async function onFirmwareUpdateButtonClick() {
         dataView = new DataView(arrayBuffer);
         dataView.setUint8(0, abw.WR_ENABLE_DFU);
         dataView.setBigUint64(1, devEUI);
-        await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);        
+        await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);
         notif = await eventReader.read();
         if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_ENABLE_DFU || notif.value.getUint8(1) != 0) {
             throw Error(`Didn't receive proper value notification as response to Enable Firmware Update over BLE: ${notif.value.getUint8(1)}`);
