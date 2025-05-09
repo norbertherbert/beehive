@@ -110,7 +110,25 @@ window.onload = () => {
         // });
 
         firmware_update_button.addEventListener('click', function() {
-            onFirmwareUpdateButtonClick();
+            if (gblIsAT2) {
+                onFirmwareUpdateButtonClick(true);
+            } else {
+                select_fw_type_modal.style.display = 'block';
+            }
+        });
+
+        mcu_fw_upgrade_button.addEventListener('click', function() {
+            select_fw_type_modal.style.display = 'none';
+            onFirmwareUpdateButtonClick(true);
+        });
+
+        ble_fw_upgrade_button.addEventListener('click', function() {
+            select_fw_type_modal.style.display = 'none';
+            onFirmwareUpdateButtonClick(false);
+        });
+
+        document.querySelector('#select_fw_type_modal .modal-close').addEventListener('click', function() {
+            select_fw_type_modal.style.display = 'none';
         });
 
         remove_bond_button.addEventListener('click', function() {

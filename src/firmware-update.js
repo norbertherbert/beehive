@@ -2,19 +2,11 @@ import * as abw from './abw.js';
 import {log, sleep, setBLESpeed, createStreamFromEvents} from './connection-mgmt.js';
 
 
-export async function onFirmwareUpdateButtonClick() {
+export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
 
     try {
 
-
-
-
-
         // if (!gblIsAT2) { log('ALERT: This function is not supported on AT3 yet!'); return; }
-
-
-
-
 
         loader_div.style.display = 'block';
         document.querySelectorAll('button').forEach(elem => {
@@ -60,7 +52,13 @@ export async function onFirmwareUpdateButtonClick() {
 
         let crc = 0;
 
+
         if (gblIsAT2) {
+
+          // ***************
+          // ***** AT2 *****
+          // ***************
+
           // Enable Firmware Update
 
           arrayBuffer = new ArrayBuffer(9);
@@ -150,8 +148,8 @@ export async function onFirmwareUpdateButtonClick() {
             ) {
               throw Error(`Error: Invalid response received to Write Binary Data chunk Request: ${notif.value.getUint8(1)}`);
             }
-            if ( notif.value.getUint8(1) != abw.DFU_OPERATION_SUCCESS ) {
-              throw Error(`Error recevied as response to Write Binary Data chunk Request: ${abw.FW_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
+            if ( notif.value.getUint8(1) != abw.AT2_DFU_OPERATION_SUCCESS ) {
+              throw Error(`Error recevied as response to Write Binary Data chunk Request: ${abw.AT2_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
             }
 
 
@@ -165,20 +163,30 @@ export async function onFirmwareUpdateButtonClick() {
           ) {
             throw Error(`Error: Invalid response received to Write Binary Data chunk Request: ${notif.value.getUint8(1)}`);
           }
-          if ( notif.value.getUint8(1) != abw.DFU_OPERATION_SUCCESS ) {
-            throw Error(`Error recevied as response to Write Binary Data chunk Request: ${abw.FW_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
+          if ( notif.value.getUint8(1) != abw.AT2_DFU_OPERATION_SUCCESS ) {
+            throw Error(`Error recevied as response to Write Binary Data chunk Request: ${abw.AT2_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
           }
-        } else { // ***** AT3 *****
+        
+
+        } else {
+
+          // ***************
+          // ***** AT3 *****
+          // ***************
 
           await sleep(500);
+
           // Enable Firmware Update
 
           arrayBuffer = new ArrayBuffer(10);
           dataView = new DataView(arrayBuffer);
           dataView.setUint8(0, abw.WR_ENABLE_DFU);
           dataView.setBigUint64(1, devEUI);
-          dataView.setUint8(9, abw.FW_TYPE_BLE_STACK);
-          //dataView.setUint8(9, abw.FW_TYPE_MCU);
+
+          // dataView.setUint8(9, abw.FW_TYPE_MCU);
+          // dataView.setUint8(9, abw.FW_TYPE_BLE_STACK);
+          dataView.setUint8(9, isMcuFwUpdate ? abw.FW_TYPE_MCU : abw.FW_TYPE_BLE_STACK);
+          
           await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);
           notif = await eventReader.read();
           if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_ENABLE_DFU || notif.value.getUint8(1) != 0) {
@@ -255,7 +263,7 @@ export async function onFirmwareUpdateButtonClick() {
                 throw Error(`Error: Invalid response received to Write Binary Data chunk Request: ${notif.value.getUint8(1)}`);
             }
             if ( notif.value.getUint8(1) != abw.DFU_OPERATION_SUCCESS ) {
-              throw Error(`Error recevied as response to Write Binary Data chunk Request: ${abw.FW_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
+              throw Error(`Error recevied as response to Write Binary Data chunk Request: ${abw.DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
             }
 
 
@@ -285,7 +293,7 @@ export async function onFirmwareUpdateButtonClick() {
               throw Error(`Error: Invalid response received to Write Binary Data chunk Request: ${notif.value.getUint8(1)}`);
           }
           if ( notif.value.getUint8(1) != abw.DFU_OPERATION_SUCCESS ) {
-              throw Error(`Error recevied as response to Write Binary Data chunk Request: ${abw.FW_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
+              throw Error(`Error recevied as response to Write Binary Data chunk Request: ${abw.DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
           }
         }
 
@@ -315,13 +323,13 @@ export async function onFirmwareUpdateButtonClick() {
             throw Error(`Error: Invalid response received to Write CRC Request`);
         }
         if ( notif.value.getUint8(1) != abw.DFU_OPERATION_SUCCESS ) {
-            throw Error(`Error received as a response to write CRC request: ${abw.FW_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
+            throw Error(`Error received as a response to write CRC request: ${abw.DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
         }
 
         chr_custom_mcu_fw_update.stopNotifications();
         log(`> Firmware Update notifications have been stopped`);
 
-        log(`> Firmware Update finished. Status: ${abw.FW_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
+        log(`> Firmware Update finished. Status: ${abw.DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
         log(`> Please wait until the device restarts. Don't start any BLE operation before that!`);
         log(`> The restart will take around 1 min.`);
 

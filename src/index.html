@@ -90,6 +90,9 @@
             </div>
         </div>
 
+
+
+
         <div id="save-confirm-modal" class="modal" style="display:none;">
             <div class="modal-content">
                 <span class="modal-close">&times;</span>
@@ -104,6 +107,15 @@
                 <h3>Tilt Angles:</h3>
                 <div id="tilt_angles_div"></div>
                 <img id="tilt_angles_img" src="" height="200px"\>
+            </div>     
+        </div>
+
+        <div id="select_fw_type_modal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="modal-close">&times;</span>
+                <p>Please select an option:</p>
+                <button id="mcu_fw_upgrade_button">MCU Firmware Upgrade</button>
+                <button id="ble_fw_upgrade_button">BLE Firmware Upgrade</button>
             </div>     
         </div>
 
@@ -127,6 +139,9 @@
             const export_config_button = document.querySelector('#export_config_button');
             const start_cli_button = document.querySelector('#start_cli_button');
             const firmware_update_button = document.querySelector('#firmware_update_button');
+            const select_fw_type_modal = document.getElementById('select_fw_type_modal');
+            const mcu_fw_upgrade_button = document.getElementById('mcu_fw_upgrade_button');
+            const ble_fw_upgrade_button = document.getElementById('ble_fw_upgrade_button');
             const remove_bond_button = document.querySelector('#remove_bond_button');
             const tilt_monitoring_button = document.querySelector('#tilt_monitoring_button');
             const log_div = document.querySelector('#log_div');
