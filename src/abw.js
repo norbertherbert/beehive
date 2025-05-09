@@ -254,40 +254,40 @@ export const NOTIF_WRITE_BINARY_DATA_ACK = 0x02; // NOTIF_WRITE_BINARY_DATA_ACK(
 // For AT2 FW Update
 // *************************************
 
-export const AT2_DFU_OPERATION_SUCCESS = 0x00; //	Y	The operation completed successfully
-export const AT2_DFU_SRV_NOT_IMITIALIZED           = 0x01; //	Y	Service not  initialized
-export const AT2_DFU_STORAGE_NOT_INITIALIZED       = 0x02; //	N	Storage not initialized
-export const AT2_DFU_INVALID_DEV_EUI               = 0x03; //	N	Invalid Device EUI argument in the message
-export const AT2_DFU_INTERNAL_ERROR_04             = 0x04; //	N	Internal error
-export const AT2_DFU_INTERNAL_ERROR_05             = 0x05; //	N	Internal error
-export const AT2_DFU_OPERATION_TIMEOUT             = 0x06; //	N	Operation timeout
-export const AT2_DFU_INTERNAL_ERROR_07             = 0x07; //	N	Internal error
-export const AT2_DFU_INTERNAL_ERROR_08             = 0x08; //	N	Internal error
-export const AT2_DFU_CRC_ERROR                     = 0x09; //	N	Binary CRC error
-export const AT2_DFU_STORAGE_OPERATION_ERROR       = 0x0A; //	N	Storage operation error
-export const AT2_DFU_ADDRESS_RECEIVED_ERROR        = 0x0B; //	Y	Address received error
-export const AT2_DFU_BINARY_LENGTH_ERROR           = 0x0C; //	N	Binary length error
-export const AT2_DFU_BINARY_LENGTH_ERRROR          = 0x0D; //	N	Device EUI mismatch
-export const AT2_DFU_BATTERY_LEVEL_TOO_LOW         = 0x0E; //	Y	Battery level too low to start the DFU
-export const AT2_DFU_STORAGE_ERROR                 = 0x0F; //	N	Storage error
+export const AT2_DFU_OPERATION_SUCCESS        = 0x00;
+export const AT2_DFU_SRV_NOT_INITIALIZED      = 0x01;
+export const AT2_DFU_STORAGE_NOT_INITIALIZED  = 0x02;
+export const AT2_DFU_INVALID_DEV_EUI          = 0x03;
+export const AT2_DFU_INTERNAL_ERROR_04        = 0x04;
+export const AT2_DFU_INTERNAL_ERROR_05        = 0x05;
+export const AT2_DFU_OPERATION_TIMEOUT        = 0x06;
+export const AT2_DFU_INTERNAL_ERROR_07        = 0x07;
+export const AT2_DFU_INTERNAL_ERROR_08        = 0x08;
+export const AT2_DFU_CRC_ERROR                = 0x09;
+export const AT2_DFU_STORAGE_OPERATION_ERROR  = 0x0A;
+export const AT2_DFU_ADDRESS_RECEIVED_ERROR   = 0x0B;
+export const AT2_DFU_BINARY_LENGTH_ERROR      = 0x0C;
+export const AT2_DFU_BINARY_LENGTH_ERRROR     = 0x0D;
+export const AT2_DFU_BATTERY_LEVEL_TOO_LOW    = 0x0E;
+export const AT2_DFU_STORAGE_ERROR            = 0x0F;
 
 export const AT2_DFU_STATUS_ARRAY = [
-    'The operation completed successfully', // Y
-    'Service not  initialized', // Y
-    'Storage not initialized', // Y
-    'Invalid Device EUI argument in the message', // Y
-    'Internal error', // Y
-    'Internal error', // Y
-    'Operation timeout', // Y
-    'Internal error', // Y
-    'Internal error', // Y
-    'Binary CRC error', // Y
-    'Storage operation error', // Y
-    'Address received error', // Y
-    'Binary length error', // Y
-    'Device EUI mismatch', // Y
-    'Battery level too low to start the DFU', // Y
-    'Storage error', // Y
+    'The operation completed successfully',
+    'Service not  initialized',
+    'Storage not initialized',
+    'Invalid Device EUI argument in the message',
+    'Internal error',
+    'Internal error',
+    'Operation timeout',
+    'Internal error',
+    'Internal error',
+    'Binary CRC error',
+    'Storage operation error',
+    'Address received error',
+    'Binary length error',
+    'Device EUI mismatch',
+    'Battery level too low to start the DFU',
+    'Storage error',
 ]
 
 
@@ -297,7 +297,7 @@ export const AT2_DFU_STATUS_ARRAY = [
 // *************************************
 
 export const DFU_OPERATION_SUCCESS             = 0x00;
-export const DFU_SRV_NOT_IMITIALIZED           = 0x01;
+export const DFU_SRV_NOT_INITIALIZED           = 0x01;
 export const DFU_INVALID_STATE                 = 0x02;
 export const DFU_WIFI_INIT_ERROR               = 0x03;
 export const DFU_PAYLOAD_DATA_ERROR            = 0x04;
