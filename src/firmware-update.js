@@ -20,7 +20,7 @@ export async function onFirmwareUpdateButtonClick() {
         document.querySelectorAll('button').forEach(elem => {
             elem.disabled = true;
         });
-        
+
         await setBLESpeed(abw.WR_VERY_FAST_CONN);
 
         const options = {
@@ -38,14 +38,13 @@ export async function onFirmwareUpdateButtonClick() {
 
         const byteStream = createByteStreamFromBlob(file);
         const byteStreamReader = byteStream.getReader(({ mode: "byob" }));
-       
+
         const chr_custom_mcu_fw_update = abw.services.abeeway_primary.chars.custom_mcu_fw_update.obj;
 
         const eventStream = createStreamFromEvents(chr_custom_mcu_fw_update, 'characteristicvaluechanged');
         const eventReader = eventStream.getReader();
-        
+
         chr_custom_mcu_fw_update.startNotifications();
-        await sleep(500);
         log(`> Firmware Update notifications have been started...`);
 
 
@@ -59,86 +58,76 @@ export async function onFirmwareUpdateButtonClick() {
 
         const devEUI = BigInt("0x" + gblDevEUIHex);
 
-
-        // Enable Firmware Update
-
-        arrayBuffer = new ArrayBuffer(9);
-        dataView = new DataView(arrayBuffer);
-        dataView.setUint8(0, abw.WR_ENABLE_DFU);
-        dataView.setBigUint64(1, devEUI);
-        await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);
-        notif = await eventReader.read();
-        if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_ENABLE_DFU || notif.value.getUint8(1) != 0) {
-            throw Error(`Didn't receive proper value notification as response to Enable Firmware Update over BLE: ${notif.value.getUint8(1)}`);
-        }
-        await sleep(500);
-
-        log(`> Firmware Update over BLE is enabled...`);
-
-
-        // Begin firmware update
-
-        if (gblIsAT2) { 
-            arrayBuffer = new ArrayBuffer(5);
-            dataView = new DataView(arrayBuffer);
-            dataView.setUint8(0, abw.WR_START_DFU);
-            dataView.setUint32(1, file.size); 
-        } else {
-            arrayBuffer = new ArrayBuffer(6);
-            dataView = new DataView(arrayBuffer);
-            dataView.setUint8(0, abw.WR_START_DFU);
-            dataView.setUint32(1, file.size);
-            dataView.setUint8(5, abw.FW_TYPE_MCU);
-        }
-        await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);
-        notif = await eventReader.read();
-        if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_START_DFU || notif.value.getUint8(1) != 0) {
-            throw Error(`Didn't receive proper value notification as response to Start Firmware Update over BLE: ${notif.value.getUint8(1)}`);
-        }
-        await sleep(500);
-
-        log(`> Firmware Update start message has been sent to the device...`);
-
-
-        const chunkSize = 16;
-        let offset = 0;
-        let numOfChunks = Math.ceil(file.size / 16);
-        let chunkIndex = 0;
-        let bytesSent = 0;
         let crc = 0;
-        
 
-        command_input.style.display = "block";
-        command_input.value = "";
+        if (gblIsAT2) {
+          // Enable Firmware Update
 
+          arrayBuffer = new ArrayBuffer(9);
+          dataView = new DataView(arrayBuffer);
+          dataView.setUint8(0, abw.WR_ENABLE_DFU);
+          dataView.setBigUint64(1, devEUI);
+          await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);
+          notif = await eventReader.read();
+          if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_ENABLE_DFU || notif.value.getUint8(1) != 0) {
+             throw Error(`Didn't receive proper value notification as response to Enable Firmware Update over BLE: ${notif.value.getUint8(1)}`);
+          }
 
-        log(`> Firmware Update in progress...`);
-
-        let byteStreamChunk;
-
-
-        byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(chunkSize)));
-        crc = crc16(byteStreamChunk.value, crc);
-        let buf = new ArrayBuffer(4 + byteStreamChunk.value.byteLength);
-        let view = new Uint8Array(buf);
-        view[0] = abw.WR_WRITE_BINARY_DATA;
-        view[1] = (offset >> 16) & 0xff;
-        view[2] = (offset >> 8) & 0xff;
-        view[3] = offset & 0xff;
-        view.set(byteStreamChunk.value, 4);
-        await chr_custom_mcu_fw_update.writeValueWithoutResponse(buf);
-        bytesSent += byteStreamChunk.value.length;
-        offset += byteStreamChunk.value.length;
-        chunkIndex += 1;
-        command_input.value = `  FW Chunk: ${chunkIndex} / ${numOfChunks}`;
+          log(`> Firmware Update over BLE is enabled...`);
 
 
-        byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(chunkSize)));
-        // while ((chunkIndex < numOfChunks) && !byteStreamChunk.done) {
-        while (chunkIndex < numOfChunks) {
+          // Begin firmware update
+
+          arrayBuffer = new ArrayBuffer(5);
+          dataView = new DataView(arrayBuffer);
+          dataView.setUint8(0, abw.WR_START_DFU);
+          dataView.setUint32(1, file.size);
+
+          await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);
+          notif = await eventReader.read();
+          if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_START_DFU || notif.value.getUint8(1) != 0) {
+            throw Error(`Didn't receive proper value notification as response to Start Firmware Update over BLE: ${notif.value.getUint8(1)}`);
+          }
+
+          log(`> Firmware Update start message has been sent to the device...`);
+
+
+          const chunkSize = 16;
+          let offset = 0;
+          let numOfChunks = Math.ceil(file.size / chunkSize);
+          let chunkIndex = 0;
+
+
+          command_input.style.display = "block";
+          command_input.value = "";
+
+
+          log(`> Firmware Update in progress...`);
+
+          let byteStreamChunk;
+
+
+          byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(chunkSize)));
+          crc = crc16(byteStreamChunk.value, crc);
+          let buf = new ArrayBuffer(4 + byteStreamChunk.value.byteLength);
+          let view = new Uint8Array(buf);
+          view[0] = abw.WR_WRITE_BINARY_DATA;
+          view[1] = (offset >> 16) & 0xff;
+          view[2] = (offset >> 8) & 0xff;
+          view[3] = offset & 0xff;
+          view.set(byteStreamChunk.value, 4);
+          await chr_custom_mcu_fw_update.writeValueWithoutResponse(buf);
+          offset += byteStreamChunk.value.length;
+          chunkIndex += 1;
+          command_input.value = `  FW Chunk: ${chunkIndex} / ${numOfChunks}`;
+
+
+          byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(chunkSize)));
+          // while ((chunkIndex < numOfChunks) && !byteStreamChunk.done) {
+          while (chunkIndex < numOfChunks) {
 
             if ((byteStreamChunk.value.length == 1) && (byteStreamChunk.value.at(0) == 0)) continue;
-            
+
 
             crc = crc16(byteStreamChunk.value, crc);
             let buf = new ArrayBuffer(4 + byteStreamChunk.value.byteLength);
@@ -149,7 +138,6 @@ export async function onFirmwareUpdateButtonClick() {
             view[3] = offset & 0xff;
             view.set(byteStreamChunk.value, 4);
             await chr_custom_mcu_fw_update.writeValueWithoutResponse(buf);
-            bytesSent += byteStreamChunk.value.length;
             offset += byteStreamChunk.value.length;
             chunkIndex += 1;
             command_input.value = `  FW Chunk: ${chunkIndex} / ${numOfChunks}`;
@@ -157,31 +145,151 @@ export async function onFirmwareUpdateButtonClick() {
 
             notif = await eventReader.read();
             if (
-                notif.value.byteLength != 5 || 
+                notif.value.byteLength != 5 ||
                 notif.value.getUint8(0) != abw.WR_WRITE_BINARY_DATA
             ) {
-                throw Error(`Error: Invalid response received to Write Binary Data chunk Request: ${notif.value.getUint8(1)}`);
+              throw Error(`Error: Invalid response received to Write Binary Data chunk Request: ${notif.value.getUint8(1)}`);
             }
-            if ( notif.value.getUint8(1) != abw.FW_UPDATE_COMPLETED_SUCCESSFULLY ) {
-                throw Error(`Error recevied as response to Write Binary Data chunk Request: ${abw.FW_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
+            if ( notif.value.getUint8(1) != abw.DFU_OPERATION_SUCCESS ) {
+              throw Error(`Error recevied as response to Write Binary Data chunk Request: ${abw.FW_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
             }
 
 
             byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(chunkSize)));
-        }
+          }
 
-        notif = await eventReader.read();
-        if (
-            notif.value.byteLength != 5 || 
-            notif.value.getUint8(0) != abw.WR_WRITE_BINARY_DATA
-        ) {
+          notif = await eventReader.read();
+          if (
+              notif.value.byteLength != 5 ||
+              notif.value.getUint8(0) != abw.WR_WRITE_BINARY_DATA
+          ) {
             throw Error(`Error: Invalid response received to Write Binary Data chunk Request: ${notif.value.getUint8(1)}`);
-        }
-        if ( notif.value.getUint8(1) != abw.FW_UPDATE_COMPLETED_SUCCESSFULLY ) {
+          }
+          if ( notif.value.getUint8(1) != abw.DFU_OPERATION_SUCCESS ) {
             throw Error(`Error recevied as response to Write Binary Data chunk Request: ${abw.FW_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
+          }
+        } else { // ***** AT3 *****
+
+          await sleep(500);
+          // Enable Firmware Update
+
+          arrayBuffer = new ArrayBuffer(10);
+          dataView = new DataView(arrayBuffer);
+          dataView.setUint8(0, abw.WR_ENABLE_DFU);
+          dataView.setBigUint64(1, devEUI);
+          dataView.setUint8(9, abw.FW_TYPE_BLE_STACK);
+          //dataView.setUint8(9, abw.FW_TYPE_MCU);
+          await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);
+          notif = await eventReader.read();
+          if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_ENABLE_DFU || notif.value.getUint8(1) != 0) {
+              throw Error(`Didn't receive proper value notification as response to Enable Firmware Update over BLE: ${notif.value.getUint8(1)}`);
+          }
+          await sleep(500);
+
+          log(`> Firmware Update over BLE is enabled...`);
+
+
+          // Begin firmware update
+          arrayBuffer = new ArrayBuffer(5);
+          dataView = new DataView(arrayBuffer);
+          dataView.setUint8(0, abw.WR_START_DFU);
+          dataView.setUint32(1, file.size);
+
+          await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);
+          notif = await eventReader.read();
+          if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_START_DFU || notif.value.getUint8(1) != 0) {
+              throw Error(`Didn't receive proper value notification as response to Start Firmware Update over BLE: ${notif.value.getUint8(1)}`);
+          }
+          await sleep(500);
+
+          log(`> Firmware Update start message has been sent to the device...`);
+
+          const chunkSize = 16;//36;
+          let offset = 0;
+          let numOfChunks = Math.ceil(file.size / chunkSize);
+          let chunkIndex = 0;
+
+          command_input.style.display = "block";
+          command_input.value = "";
+
+          log(`> Firmware Update in progress...`);
+
+          let byteStreamChunk;
+
+
+          byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(chunkSize)));
+          crc = crc16(byteStreamChunk.value, crc);
+          let buf = new ArrayBuffer(4 + byteStreamChunk.value.byteLength);
+          let view = new Uint8Array(buf);
+          view[0] = abw.WR_WRITE_BINARY_DATA;
+          view[1] = (offset >> 16) & 0xff;
+          view[2] = (offset >> 8) & 0xff;
+          view[3] = offset & 0xff;
+          view.set(byteStreamChunk.value, 4);
+          await chr_custom_mcu_fw_update.writeValueWithoutResponse(buf);
+          offset += byteStreamChunk.value.length;
+          chunkIndex += 1;
+          command_input.value = `  FW Chunk: ${chunkIndex} / ${numOfChunks}`;
+
+          byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(chunkSize)));
+
+          while (chunkIndex < numOfChunks) {
+
+            crc = crc16(byteStreamChunk.value, crc);
+            let buf = new ArrayBuffer(4 + byteStreamChunk.value.byteLength);
+            let view = new Uint8Array(buf);
+            view[0] = abw.WR_WRITE_BINARY_DATA;
+            view[1] = (offset >> 16) & 0xff;
+            view[2] = (offset >> 8) & 0xff;
+            view[3] = offset & 0xff;
+            view.set(byteStreamChunk.value, 4);
+            await chr_custom_mcu_fw_update.writeValueWithoutResponse(buf);
+            offset += byteStreamChunk.value.length;
+            chunkIndex += 1;
+            command_input.value = `  FW Chunk: ${chunkIndex} / ${numOfChunks}`;
+
+
+            notif = await eventReader.read();
+            if (notif.value.byteLength != 5 ||
+                notif.value.getUint8(0) != abw.WR_WRITE_BINARY_DATA ) {
+                throw Error(`Error: Invalid response received to Write Binary Data chunk Request: ${notif.value.getUint8(1)}`);
+            }
+            if ( notif.value.getUint8(1) != abw.DFU_OPERATION_SUCCESS ) {
+              throw Error(`Error recevied as response to Write Binary Data chunk Request: ${abw.FW_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
+            }
+
+
+            byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(chunkSize)));
+
+            // if ( notif.value.getUint8(1) == abw.DFU_OPERATION_SUCCESS ) {
+            //   offset += byteStreamChunk.value.length;
+            //   chunkIndex += 1;
+            //   crc = crc16(byteStreamChunk.value, crc);
+            //   command_input.value = `  FW Chunk: ${chunkIndex} / ${numOfChunks}`;
+            // } else if ( notif.value.getUint8(1) == abw.DFU_WAIT_FLASH ) {
+            //   await sleep(30);
+            //   continue;
+            // } else {
+            //   continue;
+            // }
+            // if (chunkIndex < numOfChunks) {
+            //   byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(chunkSize)));
+            // }
+          }
+
+          notif = await eventReader.read();
+          if (
+              notif.value.byteLength != 5 ||
+              notif.value.getUint8(0) != abw.WR_WRITE_BINARY_DATA
+          ) {
+              throw Error(`Error: Invalid response received to Write Binary Data chunk Request: ${notif.value.getUint8(1)}`);
+          }
+          if ( notif.value.getUint8(1) != abw.DFU_OPERATION_SUCCESS ) {
+              throw Error(`Error recevied as response to Write Binary Data chunk Request: ${abw.FW_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
+          }
         }
 
-        
+
         log(command_input.value);
         command_input.value = "";
         command_input.style.display = "none";
@@ -189,7 +297,7 @@ export async function onFirmwareUpdateButtonClick() {
 
         // Send CRC
 
-        // console.log(`  Final CRC: ${crc}`);
+        log(`> Sending CRC`);
 
         arrayBuffer = new ArrayBuffer(3);
         dataView = new DataView(arrayBuffer);
@@ -201,15 +309,15 @@ export async function onFirmwareUpdateButtonClick() {
         notif.value = notif.value;
 
         if (
-            notif.value.byteLength != 2 || 
+            notif.value.byteLength != 2 ||
             notif.value.getUint8(0) != abw.WR_BINARY_DATA_CRC
         ) {
             throw Error(`Error: Invalid response received to Write CRC Request`);
         }
-        if ( notif.value.getUint8(1) != abw.FW_UPDATE_COMPLETED_SUCCESSFULLY ) {
+        if ( notif.value.getUint8(1) != abw.DFU_OPERATION_SUCCESS ) {
             throw Error(`Error received as a response to write CRC request: ${abw.FW_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
         }
-        
+
         chr_custom_mcu_fw_update.stopNotifications();
         log(`> Firmware Update notifications have been stopped`);
 
