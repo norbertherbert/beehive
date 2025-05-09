@@ -13,7 +13,7 @@ export async function onRemoveBondButtonClick() {
             log(`Removing bond of device ${gblDevEUIHex}...`);
     
             const chr_custom_simple_cmd = abw.services.abeeway_primary.chars.custom_simple_cmd.obj;
-            // await chr_custom_simple_cmd.writeValue(Uint8Array.of(abw.WR_CLEAR_BOND));
+            await chr_custom_simple_cmd.writeValueWithoutResponse(Uint8Array.of(abw.WR_CLEAR_BOND));
             // const res = await chr_custom_simple_cmd.readValue();
             // if (res.getUint8(0)== abw.WR_CLEAR_BOND) {
             //     log(`> The bond of device ${gblDevEUIHex} has been removed.`);
