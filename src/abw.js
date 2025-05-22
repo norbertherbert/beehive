@@ -721,6 +721,16 @@ export const PARAMS_AT3 = [
     ["cell_s1_src_ip_port", 0x0a15,"i32"],
     ["cell_s1_tx_aggr_time", 0x0a16,"i32"],
 
+
+
+
+    ["cell_apn_user_id", 0x0a17, "string"],     
+    ["cell_apn_user_pwd", 0x0a18, "string"],
+    ["cell_apn_auth_protocol", 0x0a19, "i32"],
+
+
+
+    
     ["ble_cnx_tx_power", 0x0b00,"i32"],
     ["ble_cnx_adv_duration", 0x0b01,"i32"],
     ["ble_cnx_behavior", 0x0b02,"i32"],
