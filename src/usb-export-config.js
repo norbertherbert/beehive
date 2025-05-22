@@ -29,7 +29,7 @@ export async function onUsbExportConfigButtonClick() {
             ( { response } = await executeCmdGetResponse(cmd) );
             log(response);
 
-            const lines = response.split(/\r\n/);
+            const lines = response.split(/\r?\n/);
 
             for (const line of lines) {
 
@@ -52,7 +52,12 @@ export async function onUsbExportConfigButtonClick() {
             const { response } = await executeCmdGetResponse(cmd);
             log(response);
 
-            const lines = response.split(/\r\n/);
+            // console.log("------------------- RESPONSE START -----------------------------");
+            // console.log(response);
+            // console.log("------------------- RESPONSE END -----------------------------");
+
+            const lines = response.split(/\r?\n/);
+
 
             for (const line of lines) {
 
@@ -99,7 +104,7 @@ export async function onUsbExportConfigButtonClick() {
                     configFileString += `${foundParam[0]} = ${paramValue}\r\n`
 
                 } else {
-                    log(`Unknown parameter id (0x${lineSegments[5].toString().padStart(4, '0')}) has been ignored from the export.`);
+                    log(`Unknown parameter id ${lineSegments[0]} has been ignored from the export.`);
                 }
 
             }           

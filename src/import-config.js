@@ -86,6 +86,11 @@ export async function onImportConfigButtonClick() {
                 view.setInt32(2, paramValue);
 
             } else {
+
+                // telemetry params should not be imported
+                if ( (foundParam[1] >> 8) == 0x0c ) {
+                    continue;
+                }
                 
                 switch (foundParam[2]) {
                     case 'i32':
