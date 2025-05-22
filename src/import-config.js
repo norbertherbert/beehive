@@ -135,7 +135,6 @@ export async function onImportConfigButtonClick() {
                         // console.log(paramValueString.length);
 
                         paramValue = encoder.encode(paramValueString);
-                        // console.log(paramValue.length);
 
                         buffer = new ArrayBuffer(4 + paramValue.byteLength + 1);
                         view = new DataView(buffer);
@@ -146,7 +145,7 @@ export async function onImportConfigButtonClick() {
                         view.setUint8(4 + paramValue.byteLength, 0); // null terminated string
 
                         view = new Uint8Array(buffer)
-                        view.set(paramValue, 3);
+                        view.set(paramValue, 4);
 
                         // console.log(buffer)
 
