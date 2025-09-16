@@ -247,6 +247,16 @@ async function getDevEUI() {
     const cmd = 'lora info';
     const { response } = await executeCmdGetResponse(cmd);
     const DevEUIIndex = response.indexOf('DevEUI:');
+
+    if (DevEUIIndex == -1) {
+        const cmd = 'net lora info driver';
+        const { response } = await executeCmdGetResponse(cmd);
+        const DevEUIIndex = response.indexOf('DevEUI:');
+        const JoinEUIIndex = response.indexOf('JoinEUI:');
+        const DevEUIString = response.slice(DevEUIIndex+7, JoinEUIIndex).replace(/[^0-9a-fA-F]/g, '').trim().toUpperCase();
+        return DevEUIString;
+    }
+
     const JoinEUIIndex = response.indexOf('JoinEUI:');
     const DevEUIString = response.slice(DevEUIIndex+7, JoinEUIIndex).replace(/[^0-9a-fA-F]/g, '').trim().toUpperCase();
     return DevEUIString;

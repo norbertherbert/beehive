@@ -44,6 +44,11 @@ window.onload = () => {
     
     if (isWebBluetoothEnabled()) {
 
+        window.addEventListener("beforeunload", function (e) {
+            // Modern browsers ignore custom text, they show their own message.
+            e.preventDefault();           // Required by some browsers
+            e.returnValue = "";           // Standard way
+        });
 
         if (/Chrome\/(\d+\.\d+.\d+.\d+)/.test(navigator.userAgent)){
             if (55 > parseInt(RegExp.$1)) {

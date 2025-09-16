@@ -590,7 +590,6 @@ export const PARAMS_AT3 = [
     ["sys_highest_temperature", 0x0000,"i32"],
     ["sys_lowest_temperature", 0x0001,"i32"],
     ["sys_power_consumption", 0x0002,"i32"],
-    // ["sys_cli_password", 0x0003,"i32"],
 
     ["core_monitoring_period", 0x0100,"i32"],
     ["core_status_period", 0x0101,"i32"],
@@ -607,6 +606,7 @@ export const PARAMS_AT3 = [
     ["core_almanac_validity", 0x010c,"i32"],
     ["core_almanac_outdated_ratio", 0x010d,"i32"],
     ["core_cli_password", 0x010e,"i32"],
+    ["core_db_type_mask", 0x010f, "array"],
 
     ["geoloc_motion_period", 0x0200,"i32"],
     ["geoloc_static_period", 0x0201,"i32"],
@@ -682,26 +682,29 @@ export const PARAMS_AT3 = [
     ["accelero_output_data_rate", 0x0703,"i32"],
     ["accelero_shock_threshold", 0x0704,"i32"],
 
-    ["net_selection", 0x0800,"i32"],
-    ["net_reconnection_spacing", 0x0801,"i32"],
-    ["net_main_probe_timeout", 0x0802,"i32"],
+    ["net_selection", 0x0800, "i32"],
+    ["net_reconnection_spacing_static", 0x0801, "i32"],
+    ["net_main_probe_timeout_static", 0x0802, "i32"],
+    ["net_reconnection_spacing_motion", 0x0803, "i32"],
+    ["net_main_probe_timeout_motion", 0x0804, "i32"],
 
-    ["lorawan_cnx_timeout", 0x0900,"i32"],
-    ["lorawan_dl_trigger_period", 0x0901,"i32"],
-    ["lorawan_probe_max_attempts", 0x0902,"i32"],
-    ["lorawan_probe_period", 0x0903,"i32"],
-    ["lorawan_confirm_notif_map", 0x0904,"array"],
-    ["lorawan_confirm_notif_retry", 0x0905,"i32"],
-    ["lorawan_s1_tx_strategy", 0x0906,"i32"],
-    ["lorawan_s1_ul_port", 0x0907,"i32"],
-    ["lorawan_s1_dl_port", 0x0908,"i32"],
+    ["lorawan_cnx_timeout", 0x0900, "i32"],
+    ["lorawan_heartbeat_period", 0x0901, "i32"],
+    ["lorawan_probe_max_attempts_static", 0x0902, "i32"],
+    ["lorawan_probe_period_static", 0x0903, "i32"],
+    ["lorawan_confirm_notif_map", 0x0904, "array"],
+    ["lorawan_confirm_notif_retry", 0x0905, "i32"],
+    ["lorawan_s1_tx_strategy", 0x0906, "i32"],
+    ["lorawan_s1_ul_port", 0x0907, "i32"],
+    ["lorawan_s1_dl_port", 0x0908, "i32"],
+    ["lorawan_probe_period_motion", 0x0909, "i32"],
+    ["lorawan_probe_max_attempts_motion", 0x090a, "i32"],
 
     ["cell_sim_interface", 0x0a00,"i32"],
     ["cell_network_type", 0x0a01,"i32"],
     ["cell_search_bands", 0x0a02,"array"],
     ["cell_cnx_timeout_static", 0x0a03,"i32"],
     ["cell_cnx_timeout_motion", 0x0a04,"i32"],
-
     ["cell_cnx_nw_reconnect_timeout", 0x0a05,"i32"],
     ["cell_cnx_max_attempts", 0x0a06,"i32"],
     ["cell_access_point_name", 0x0a07,"string"],
@@ -720,16 +723,9 @@ export const PARAMS_AT3 = [
     ["cell_s1_dst_ip_port", 0x0a14,"i32"],
     ["cell_s1_src_ip_port", 0x0a15,"i32"],
     ["cell_s1_tx_aggr_time", 0x0a16,"i32"],
-
-
-
-
     ["cell_apn_user_id", 0x0a17, "string"],     
     ["cell_apn_user_pwd", 0x0a18, "string"],
     ["cell_apn_auth_protocol", 0x0a19, "i32"],
-
-
-
     
     ["ble_cnx_tx_power", 0x0b00,"i32"],
     ["ble_cnx_adv_duration", 0x0b01,"i32"],
