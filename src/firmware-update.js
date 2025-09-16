@@ -2,6 +2,10 @@ import * as abw from './abw.js';
 import {log, sleep, setBLESpeed, createStreamFromEvents} from './connection-mgmt.js';
 
 
+const AT2_CHUNK_SIZE = 16;
+const AT3_CHUNK_SIZE = 128; // 16;//36;
+
+
 export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
 
     try {
@@ -89,10 +93,8 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
 
           log(`> Firmware Update start message has been sent to the device...`);
 
-
-          const chunkSize = 16;
           let offset = 0;
-          let numOfChunks = Math.ceil(file.size / chunkSize);
+          let numOfChunks = Math.ceil(file.size / AT2_CHUNK_SIZE);
           let chunkIndex = 0;
 
 
@@ -105,7 +107,7 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
           let byteStreamChunk;
 
 
-          byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(chunkSize)));
+          byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(AT2_CHUNK_SIZE)));
           crc = crc16(byteStreamChunk.value, crc);
           let buf = new ArrayBuffer(4 + byteStreamChunk.value.byteLength);
           let view = new Uint8Array(buf);
@@ -120,7 +122,7 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
           command_input.value = `  FW Chunk: ${chunkIndex} / ${numOfChunks}`;
 
 
-          byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(chunkSize)));
+          byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(AT2_CHUNK_SIZE)));
           // while ((chunkIndex < numOfChunks) && !byteStreamChunk.done) {
           while (chunkIndex < numOfChunks) {
 
@@ -153,7 +155,7 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
             }
 
 
-            byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(chunkSize)));
+            byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(AT2_CHUNK_SIZE)));
           }
 
           notif = await eventReader.read();
@@ -212,9 +214,8 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
 
           log(`> Firmware Update start message has been sent to the device...`);
 
-          const chunkSize = 16;//36;
           let offset = 0;
-          let numOfChunks = Math.ceil(file.size / chunkSize);
+          let numOfChunks = Math.ceil(file.size / AT3_CHUNK_SIZE);
           let chunkIndex = 0;
 
           command_input.style.display = "block";
@@ -225,7 +226,7 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
           let byteStreamChunk;
 
 
-          byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(chunkSize)));
+          byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(AT3_CHUNK_SIZE)));
           crc = crc16(byteStreamChunk.value, crc);
           let buf = new ArrayBuffer(4 + byteStreamChunk.value.byteLength);
           let view = new Uint8Array(buf);
@@ -239,7 +240,7 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
           chunkIndex += 1;
           command_input.value = `  FW Chunk: ${chunkIndex} / ${numOfChunks}`;
 
-          byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(chunkSize)));
+          byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(AT3_CHUNK_SIZE)));
 
           while (chunkIndex < numOfChunks) {
 
@@ -267,7 +268,7 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
             }
 
 
-            byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(chunkSize)));
+            byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(AT3_CHUNK_SIZE)));
 
             // if ( notif.value.getUint8(1) == abw.DFU_OPERATION_SUCCESS ) {
             //   offset += byteStreamChunk.value.length;

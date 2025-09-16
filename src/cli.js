@@ -3,6 +3,10 @@ import {log, streamLog, setBLESpeed, createStreamFromEvents} from './connection-
 import { onUsbCliCmdKeypressEvent, onUsbStopCliButtonClick } from './usb-cli.js';
 
 
+
+let AT2_CMD_CHUNK_SIZE = 19;
+let AT3_CMD_CHUNK_SIZE = 153;
+
 export const cmdHistory = [];
 export let cmdIndex = 0;
 export function onArrowUpDn(kbdEvent, inputElement) {
@@ -43,6 +47,8 @@ export async function onBleCliCmdKeypressEvent(e) {
     if (e.key !== 'Enter') { return }
     try {
 
+        let cmd_chunk_size = gblIsAT2 ? AT2_CMD_CHUNK_SIZE : AT3_CMD_CHUNK_SIZE;
+
         let cmd = command_input.value;
         command_input.value = "";
         addToCmdHistory(cmd);
@@ -50,9 +56,9 @@ export async function onBleCliCmdKeypressEvent(e) {
 
         const encoder = new TextEncoder("ascii");
         const chr_custom_send_cli_cmd = abw.services.abeeway_primary.chars.custom_send_cli_cmd.obj;
-        while (cmd.length > 19) {
-            const cmdChunk = cmd.substring(0,19);
-            cmd = cmd.substring(19);
+        while (cmd.length > cmd_chunk_size) {
+            const cmdChunk = cmd.substring(0,cmd_chunk_size);
+            cmd = cmd.substring(cmd_chunk_size);
             await chr_custom_send_cli_cmd.writeValueWithoutResponse(encoder.encode(cmdChunk));
         }
         await chr_custom_send_cli_cmd.writeValueWithoutResponse(encoder.encode(cmd + "\r\n"));
