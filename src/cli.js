@@ -5,7 +5,7 @@ import { onUsbCliCmdKeypressEvent, onUsbStopCliButtonClick } from './usb-cli.js'
 
 
 let AT2_CMD_CHUNK_SIZE = 19;
-let AT3_CMD_CHUNK_SIZE = 153;
+let AT3_CMD_CHUNK_SIZE = 153; // 153;
 
 export const cmdHistory = [];
 export let cmdIndex = 0;
