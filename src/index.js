@@ -44,32 +44,11 @@ window.onload = () => {
     
     if (isWebBluetoothEnabled()) {
 
-
         if (/Chrome\/(\d+\.\d+.\d+.\d+)/.test(navigator.userAgent)){
             if (55 > parseInt(RegExp.$1)) {
                 log('WARNING! This App works with Chrome ' + 55 + ' or later.');
             }
         }
-
-
-        beequeen_link.addEventListener('click', function() {
-
-            if (
-                (window.opener !== null) &&
-                (window.opener.name === 'beequeen')
-            ) {
-                // window.opener.focus();
-                alert("Beequeen is the parent of this window. Please switch back manually using your mouse!");
-            } else {
-                if (!gblBeequeenTab) {
-                    gblBeequeenTab = window.open('https://nano-things.net/beequeen/', 'beequeen');
-                } else {
-                    gblBeequeenTab.focus();
-                }
-            }
-
-        });
-
 
         request_bluetooth_device_button.addEventListener('click', function() {
             onRequestBluetoothDeviceButtonClick();
