@@ -10,7 +10,7 @@
         <meta name="description" content="Sample illustrating the use of Web Bluetooth / Device Info (Async Await).">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         
-        <title>Beehive</title>
+        <title>BeeHive</title>
 
         <!-- <link rel="stylesheet" href="./style.css"> -->
         
@@ -30,7 +30,8 @@
     <body><div id="main">
 
         <div id= "beehive_logo">
-            <span style="font-size: 16px;">Beehive v1.1</span>
+            <span style="font-size: 16px;"><b>BeeHive <i>- for AT3 Fw v1.3</i></b></span>
+            &nbsp;
             <img src="./images/android-chrome-192x192.png" height=35px;>
         </div>
 
@@ -46,13 +47,12 @@
                 <button id="refresh_connection_status_button" style="display:none;">Refresh Status</button>
                 <button id="usb_connect_device_button">Connect a USB Device</button>
                 <button id="usb_disconnect_device_button" style="display:none;">Disconnnect Device</button>
-                <a id="beequeen_link" href="#" style="margin-left: 8px; text-decoration: none; font-size: small;">
+                <a id="beequeen_link" 
+                    href="https://nano-things.net/beequeen/" 
+                    target = "_blank"
+                    style="margin-left: 8px; text-decoration: none; font-size: small;">
                     <img src="./images/beequeen.png" height=25px style="position: relative; top: 7px;">
-                    Beequeen (AT3)
-                </a>
-                <a href="https://github.com/norbertherbert/abeehive/tree/main/target/release" target="_blank" style="margin-left: 8px; text-decoration: none; font-size: small;">
-                    <img src="./images/beequeen.png" height=25px style="position: relative; top: 7px;">
-                    Beequeen (AT2 - Github)
+                    BeeQueen
                 </a>
             </div>
         </div>
@@ -123,8 +123,6 @@
 
 
         <script>
-
-            const beequeen_link = document.querySelector('#beequeen_link');
 
             const device_name_span = document.querySelector('#device_name_span');
             const connection_status_span = document.querySelector('#connection_status_span');
