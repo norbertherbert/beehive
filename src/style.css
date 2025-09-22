@@ -188,3 +188,50 @@ button:hover {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+
+/* Wrapper behaves inline with text */
+.custom-select {
+  position: relative;
+  display: inline-block;   /* allow it to sit inside a sentence */
+  width: auto;             /* shrink to fit content */
+  vertical-align: baseline; /* align nicely with text */
+  margin-left: 0.3rem;
+}
+
+/* The <select> itself */
+.custom-select select {
+  appearance: none;      /* remove native arrow */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  display: inline-block;
+  padding: 0.2rem 1.8rem 0.2rem 0.5rem; /* slimmer padding for inline look */
+  font-size: 1rem;
+  color: #333;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: border-color 0.2s;
+  vertical-align: baseline;
+}
+
+/* green border on focus */
+.custom-select select:focus {
+  border-color: #2B6B78;
+  outline: none;
+}
+
+/* custom arrow */
+.custom-select::after {
+  content: "▾";
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;   /* tighter spacing for inline use */
+  transform: translateY(-50%);
+  font-size: 0.9rem;
+  color: #666;
+  pointer-events: none;
+}

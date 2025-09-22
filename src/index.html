@@ -30,7 +30,14 @@
     <body><div id="main">
 
         <div id= "beehive_logo">
-            <span style="font-size: 16px; font-weight: bold;">BeeHive <i>- for AT3 Fw v1.2</i></span>
+            <span style="font-size: 16px; font-weight: bold;">BeeHive <i>- for</i></span>
+            <div class="custom-select">
+                <select id="version-select" onchange="goTo(this)">
+                    <option value="https://nano-things.net/beehive/AT3v1.3/">AT3 Fw v1.3</option>
+                    <option value="https://nano-things.net/beehive/AT3v1.2/" selected>AT3 Fw v1.2</option>
+                    <option value="https://nano-things.net/beehive/AT2v2.6/">AT2 Fw v2.6</option>
+                </select>
+            </div>
             &nbsp;
             <img src="./images/android-chrome-192x192.png" height=35px;>
         </div>
@@ -48,7 +55,7 @@
                 <button id="usb_connect_device_button">Connect a USB Device</button>
                 <button id="usb_disconnect_device_button" style="display:none;">Disconnnect Device</button>
                 <a id="beequeen_link" 
-                    href="https://nano-things.net/beequeen"
+                    href="https://nano-things.net/beequeen/AT3v1.2"
                     target="_blank" 
                     style="margin-left: 8px; text-decoration: none; font-size: small;"
                 >
@@ -124,6 +131,12 @@
 
 
         <script>
+
+            function goTo(selectEl) {
+                const url = selectEl.value;
+                if (!url) return;                 // ignore the placeholder
+                window.location.href = url;       // same-tab navigation
+            }
 
             const device_name_span = document.querySelector('#device_name_span');
             const connection_status_span = document.querySelector('#connection_status_span');
