@@ -72,7 +72,7 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
           await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);
           notif = await eventReader.read();
           if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_ENABLE_DFU || notif.value.getUint8(1) != 0) {
-             throw Error(`Didn't receive proper value notification as response to Enable Firmware Update over BLE: ${notif.value.getUint8(1)}`);
+             throw Error(`Didn't receive proper value notification as response to Enable Firmware Update over BLE: ${abw.AT2_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
           }
 
           log(`> Firmware Update over BLE is enabled...`);
@@ -88,7 +88,7 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
           await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);
           notif = await eventReader.read();
           if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_START_DFU || notif.value.getUint8(1) != 0) {
-            throw Error(`Didn't receive proper value notification as response to Start Firmware Update over BLE: ${notif.value.getUint8(1)}`);
+            throw Error(`Didn't receive proper value notification as response to Start Firmware Update over BLE: ${abw.AT2_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
           }
 
           log(`> Firmware Update start message has been sent to the device...`);
@@ -192,7 +192,7 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
           await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);
           notif = await eventReader.read();
           if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_ENABLE_DFU || notif.value.getUint8(1) != 0) {
-              throw Error(`Didn't receive proper value notification as response to Enable Firmware Update over BLE: ${notif.value.getUint8(1)}`);
+              throw Error(`Didn't receive proper value notification as response to Enable Firmware Update over BLE: ${abw.AT2_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
           }
           await sleep(500);
 
@@ -208,7 +208,7 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
           await chr_custom_mcu_fw_update.writeValueWithoutResponse(arrayBuffer);
           notif = await eventReader.read();
           if (notif.value.byteLength != 2 || notif.value.getUint8(0) != abw.WR_START_DFU || notif.value.getUint8(1) != 0) {
-              throw Error(`Didn't receive proper value notification as response to Start Firmware Update over BLE: ${notif.value.getUint8(1)}`);
+              throw Error(`Didn't receive proper value notification as response to Start Firmware Update over BLE: ${abw.AT2_DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
           }
           await sleep(500);
 
@@ -240,9 +240,9 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
           chunkIndex += 1;
           command_input.value = `  FW Chunk: ${chunkIndex} / ${numOfChunks}`;
 
-          byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(AT3_CHUNK_SIZE)));
-
           while (chunkIndex < numOfChunks) {
+
+            byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(AT3_CHUNK_SIZE)));
 
             crc = crc16(byteStreamChunk.value, crc);
             let buf = new ArrayBuffer(4 + byteStreamChunk.value.byteLength);
@@ -267,23 +267,6 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
               throw Error(`Error recevied as response to Write Binary Data chunk Request: ${abw.DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
             }
 
-
-            byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(AT3_CHUNK_SIZE)));
-
-            // if ( notif.value.getUint8(1) == abw.DFU_OPERATION_SUCCESS ) {
-            //   offset += byteStreamChunk.value.length;
-            //   chunkIndex += 1;
-            //   crc = crc16(byteStreamChunk.value, crc);
-            //   command_input.value = `  FW Chunk: ${chunkIndex} / ${numOfChunks}`;
-            // } else if ( notif.value.getUint8(1) == abw.DFU_WAIT_FLASH ) {
-            //   await sleep(30);
-            //   continue;
-            // } else {
-            //   continue;
-            // }
-            // if (chunkIndex < numOfChunks) {
-            //   byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(chunkSize)));
-            // }
           }
 
           notif = await eventReader.read();

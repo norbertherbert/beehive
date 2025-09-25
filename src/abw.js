@@ -273,7 +273,7 @@ export const AT2_DFU_STORAGE_ERROR            = 0x0F;
 
 export const AT2_DFU_STATUS_ARRAY = [
     'The operation completed successfully',
-    'Service not  initialized',
+    'Service not initialized',
     'Storage not initialized',
     'Invalid Device EUI argument in the message',
     'Internal error',
