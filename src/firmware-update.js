@@ -226,19 +226,20 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
           let byteStreamChunk;
 
 
-          byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(AT3_CHUNK_SIZE)));
-          crc = crc16(byteStreamChunk.value, crc);
-          let buf = new ArrayBuffer(4 + byteStreamChunk.value.byteLength);
-          let view = new Uint8Array(buf);
-          view[0] = abw.WR_WRITE_BINARY_DATA;
-          view[1] = (offset >> 16) & 0xff;
-          view[2] = (offset >> 8) & 0xff;
-          view[3] = offset & 0xff;
-          view.set(byteStreamChunk.value, 4);
-          await chr_custom_mcu_fw_update.writeValueWithoutResponse(buf);
-          offset += byteStreamChunk.value.length;
-          chunkIndex += 1;
-          command_input.value = `  FW Chunk: ${chunkIndex} / ${numOfChunks}`;
+          // byteStreamChunk = await byteStreamReader.read(new Uint8Array(new ArrayBuffer(AT3_CHUNK_SIZE)));
+
+          // crc = crc16(byteStreamChunk.value, crc);
+          // let buf = new ArrayBuffer(4 + byteStreamChunk.value.byteLength);
+          // let view = new Uint8Array(buf);
+          // view[0] = abw.WR_WRITE_BINARY_DATA;
+          // view[1] = (offset >> 16) & 0xff;
+          // view[2] = (offset >> 8) & 0xff;
+          // view[3] = offset & 0xff;
+          // view.set(byteStreamChunk.value, 4);
+          // await chr_custom_mcu_fw_update.writeValueWithoutResponse(buf);
+          // offset += byteStreamChunk.value.length;
+          // chunkIndex += 1;
+          // command_input.value = `  FW Chunk: ${chunkIndex} / ${numOfChunks}`;
 
           while (chunkIndex < numOfChunks) {
 
@@ -257,7 +258,6 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
             chunkIndex += 1;
             command_input.value = `  FW Chunk: ${chunkIndex} / ${numOfChunks}`;
 
-
             notif = await eventReader.read();
             if (notif.value.byteLength != 5 ||
                 notif.value.getUint8(0) != abw.WR_WRITE_BINARY_DATA ) {
@@ -269,16 +269,17 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
 
           }
 
-          notif = await eventReader.read();
-          if (
-              notif.value.byteLength != 5 ||
-              notif.value.getUint8(0) != abw.WR_WRITE_BINARY_DATA
-          ) {
-              throw Error(`Error: Invalid response received to Write Binary Data chunk Request: ${notif.value.getUint8(1)}`);
-          }
-          if ( notif.value.getUint8(1) != abw.DFU_OPERATION_SUCCESS ) {
-              throw Error(`Error recevied as response to Write Binary Data chunk Request: ${abw.DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
-          }
+          // notif = await eventReader.read();
+          // if (
+          //     notif.value.byteLength != 5 ||
+          //     notif.value.getUint8(0) != abw.WR_WRITE_BINARY_DATA
+          // ) {
+          //     throw Error(`Error: Invalid response received to Write Binary Data chunk Request: ${notif.value.getUint8(1)}`);
+          // }
+          // if ( notif.value.getUint8(1) != abw.DFU_OPERATION_SUCCESS ) {
+          //     throw Error(`Error recevied as response to Write Binary Data chunk Request: ${abw.DFU_STATUS_ARRAY[notif.value.getUint8(1)]}`);
+          // }
+
         }
 
 
