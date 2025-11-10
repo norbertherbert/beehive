@@ -24,7 +24,7 @@ export async function onFirmwareUpdateButtonClick(isMcuFwUpdate) {
               {
                 description: 'Firmware Files',
                 accept: {
-                  'application/octet-stream': ['.bin'],
+                  'application/octet-stream': ['.bin', '.sign'],
                 },
               },
             ],
