@@ -136,13 +136,18 @@ export async function onImportConfigButtonClick() {
 
                         paramValue = encoder.encode(paramValueString);
 
-                        buffer = new ArrayBuffer(4 + paramValue.byteLength + 1);
+                        // No need to reserve room for the terminating '\0' character anymore
+                        // buffer = new ArrayBuffer(4 + paramValue.byteLength + 1);
+                        buffer = new ArrayBuffer(4 + paramValue.byteLength);
+
                         view = new DataView(buffer);
 
                         view.setUint8(0, abw.WR_WRITE_CONF);
                         view.setUint16(1, paramID);
                         view.setUint8(3, abw.PARAM_TYPE_STRING);
-                        view.setUint8(4 + paramValue.byteLength, 0); // null terminated string
+
+                        // No need to add the terminating '\0' character anymore
+                        // view.setUint8(4 + paramValue.byteLength, 0); // null terminated string
 
                         view = new Uint8Array(buffer)
                         view.set(paramValue, 4);
