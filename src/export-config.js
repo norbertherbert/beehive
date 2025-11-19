@@ -64,12 +64,14 @@ export async function onExportConfigButtonClick() {
                 const confEvent = await confEventReader.read();
                 const value = confEvent.value;
 
-                if (value.getUint8(0) != 0) { continue; }
-                if (value.getUint16(1) != param[1]) { continue; }
-
                 if (value.getUint8(0) != abw.NOTIF_CONF_SUCCESS) {
                     console.log(`ERROR while Reading Param: '${param[0]}'`);
                     console.log(value);
+                    continue; 
+                }
+
+                if (value.getUint16(1) != param[1]) { 
+                    console.log(`ERROR while Reading Param: '${param[0]}'. The param ID reported by the device is: ${value.getUint16(1)}, while the requested param ID was ${param[1]}`);
                     continue; 
                 }
 
@@ -81,7 +83,9 @@ export async function onExportConfigButtonClick() {
                         line = `${param[0]} = ${paramValue}`;
                         break;
                     case 'string':
-                        paramValue = decoder.decode(new DataView(value.buffer, 4, value.byteLength-5));
+                        // No need to ignore the terminating '\0' character anymore. The '\0' is not there.
+                        // paramValue = decoder.decode(new DataView(value.buffer, 4, value.byteLength-5));
+                        paramValue = decoder.decode(new DataView(value.buffer, 4, value.byteLength-4));
                         line = `${param[0]} = "${paramValue}"`;
                         break;
                     case 'array':
