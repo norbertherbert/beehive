@@ -38,9 +38,37 @@ function isWebBluetoothEnabled() {
     }
 }
 
-window.onload = () => {
+window.onload = async () => {
 
     window.name="beehive";
+
+    const version_select = document.getElementById("version-select");
+    const currentVersion = version_select.dataset.currentVersion;
+    try {
+        const res = await fetch("/beehive/versions.json", { cache: "no-cache" });
+        if (!res.ok) throw new Error("Failed to load versions.json");
+
+        const versions = await res.json();
+
+        versions.forEach(v => {
+        const option = document.createElement("option");
+        option.value = v.url;
+        option.textContent = v.label;
+        if (v.id === currentVersion) {
+            option.selected = true;
+        }
+        version_select.appendChild(option);
+        });
+
+        version_select.addEventListener("change", (e) => {
+        const url = e.target.value;
+        if (url) {
+            window.location.href = url;
+        }
+        });
+    } catch (err) {
+        console.error("Error loading versions:", err);
+    }
     
     if (isWebBluetoothEnabled()) {
 
