@@ -726,6 +726,7 @@ export const PARAMS_AT3 = [
     ["cell_apn_user_id", 0x0a17, "string"],     
     ["cell_apn_user_pwd", 0x0a18, "string"],
     ["cell_apn_auth_protocol", 0x0a19, "i32"],
+    ["cell_fuota_server_ip_url_addr", 0x0a1a, "string"],   
     
     ["ble_cnx_tx_power", 0x0b00,"i32"],
     ["ble_cnx_adv_duration", 0x0b01,"i32"],
